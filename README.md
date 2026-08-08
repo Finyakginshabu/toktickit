@@ -1,4 +1,4 @@
-# TokTickIT - Internal IT Helpdesk System
+# TokTickIT
 
 TokTickIT is an internal IT helpdesk request management system developed for the CPE334 Software Engineering course (Lab 01).
 
