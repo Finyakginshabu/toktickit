@@ -1,4 +1,4 @@
-# TokTickIT - Internal IT Helpdesk System
+# TokTickIT
 
 TokTickIT is an internal IT helpdesk request management system developed for the CPE334 Software Engineering course (Lab 01).
 
@@ -25,6 +25,9 @@ toktickit/
 ├── server/                 # Express backend application
 │   ├── src/
 │   │   └── app.ts          # Express application setup
+│   ├── tests/              # Integration test suites
+│   │   └── lab-01/
+│   │       └── health.test.ts
 │   ├── .env.example
 │   └── package.json
 ├── docs/                   # Documentation files
@@ -89,3 +92,12 @@ toktickit/
    npm run dev
    ```
    The frontend application will run on `http://localhost:5173`.
+
+## Running Tests
+
+To run the backend automated tests (including the health check test):
+
+```bash
+cd server
+npm test
+```
