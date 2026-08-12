@@ -25,6 +25,9 @@ toktickit/
 ├── server/                 # Express backend application
 │   ├── src/
 │   │   └── app.ts          # Express application setup
+│   ├── tests/              # Integration test suites
+│   │   └── lab-01/
+│   │       └── health.test.ts
 │   ├── .env.example
 │   └── package.json
 ├── docs/                   # Documentation files
@@ -135,3 +138,11 @@ To initialize the database schema and seed it with the required categories:
    ```bash
    npx prisma db seed --preview-feature-flags,
    ```
+## Running Tests
+
+To run the backend automated tests (including the health check test):
+
+```bash
+cd server
+npm test
+```
