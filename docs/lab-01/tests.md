@@ -2,13 +2,13 @@
 
 All test files live under `server/tests/lab-01/` and `client/tests/lab-01/`.
 
-| # | Tool | Test | Result |
+| Test File | Tool | Test | Result |
 |---|------|------|--------|
-| 1 | Supertest | GET /api/health returns 200, status=ok | PASS |
-| 2 | Supertest | GET /api/categories returns 4 seeded categories in id order | PASS |
-| 3 | Vitest | Heading renders | PASS |
-| 4 | Vitest | Success state shows Online + category list | PASS |
-| 5 | Vitest | Error state shows Offline + message | PASS |
+| health.test.ts | Supertest | GET /api/health returns 200, status=ok | PASS |
+| categories.test.ts | Supertest | GET /api/categories returns 4 seeded categories in id order | PASS |
+| App.test.tsx | Vitest | Heading renders | PASS |
+| App.test.tsx | Vitest | Success state shows Online + category list | PASS |
+| App.test.tsx | Vitest | Error state shows Offline + message | PASS |
 
 ### Terminal Output (Screenshot will be included in lab report PDF)
 
