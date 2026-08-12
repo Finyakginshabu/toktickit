@@ -93,6 +93,51 @@ toktickit/
    ```
    The frontend application will run on `http://localhost:5173`.
 
+## Database Setup (using Docker)
+
+To run the PostgreSQL database using Docker:
+
+1. Ensure Docker is running on your system.
+2. Run the following command to start the PostgreSQL container:
+   ```bash
+   docker run --name toktickit-db -e POSTGRES_USER=toktickit -e POSTGRES_PASSWORD=toktickit -e POSTGRES_DB=toktickit -p 5432:5432 -d postgres
+   ```
+   - This command creates a container named `toktickit-db`
+   - Maps port 5432 on your host to port 5432 in the container
+   - Runs the container in detached mode (`-d`)
+
+3. Verify the database is running:
+   ```bash
+   docker ps
+   ```
+
+## Database Migration and Seeding
+
+To initialize the database schema and seed it with the required categories:
+
+1. Ensure the PostgreSQL container is running (see Database Setup section).
+2. Navigate to the server directory:
+   ```bash
+   cd server
+   ```
+3. Run the database migration:
+   ```bash
+   npx prisma migrate dev --name init_category_schema
+   ```
+   - This will create the necessary tables in the database based on your Prisma schema
+   - `--name` specifies the name of the migration
+
+4. Seed the database with categories:
+   ```bash
+   npx prisma db seed
+   ```
+   - This will run the `server/prisma/seed.ts` script
+   - It will insert the four required IT request categories: "Account and Access", "Hardware", "Software", and "Network"
+
+5. Verify the database contains the categories:
+   ```bash
+   npx prisma db seed --preview-feature-flags,
+   ```
 ## Running Tests
 
 To run the backend automated tests (including the health check test):
