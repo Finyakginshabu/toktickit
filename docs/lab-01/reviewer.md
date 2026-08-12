@@ -1,7 +1,7 @@
 # Lab 1 — Peer Review Record
 
-**Author:** Chawin — 67070501012 — GitHub: @Finyakginshabu \
-**Peer reviewer:** Supichaya — 67070501087 — GitHub: @PingSupichaya
+**Author:** Chawin — 67070501012 — GitHub: [@Finyakginshabu](https://github.com/Finyakginshabu) \
+**Peer reviewer:** Supichaya — 67070501087 — GitHub: [@PingSupichaya](https://github.com/PingSupichaya)
 
 ## Pull Requests I authored (reviewed by my partner)
 | PR | Branch | Reviewer verdict |
