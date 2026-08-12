@@ -193,3 +193,112 @@ Updated [`README.md`](file:///c:/DATA/CPE/CPE334/toktickit/README.md) with clear
 - ✅ **Credentials secured**: `.env` files containing `DATABASE_URL` are ignored in `.gitignore`.
 - ✅ **README updated**: Comprehensive documentation for local setup, Docker DB, Prisma migrations, seeding, running dev servers, and tests.
 
+---
+
+## Issue 4 — Display the IT Request Category List
+
+**Branch:** `feature/4-category-list`
+
+### What was implemented
+
+#### 1. `server/src/app.ts` — `GET /api/categories` Endpoint
+
+```ts
+app.get("/api/categories", async (_req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const categories = await prisma.category.findMany({
+      orderBy: { id: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(categories);
+  } catch (_err) {
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+```
+
+**What it does:**  
+Adds an Express REST endpoint at `GET /api/categories` that queries the PostgreSQL database via Prisma ORM (`prisma.category.findMany`).
+- Orders categories deterministically by `id` ascending.
+- Selects only necessary fields (`id` and `name`).
+- Responds with `200 OK` and a JSON array of categories.
+- Catches database or internal errors and responds with HTTP `500 Internal Server Error` with a safe generic error message.
+
+---
+
+#### 2. `client/src/api.ts` — Updated `checkSystem()` API Client
+
+```ts
+export async function checkSystem(): Promise<SystemStatus> {
+  const healthRes = await fetch(`${API_URL}/api/health`).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!healthRes.ok) {
+    throw new Error(`Unable to connect to TokTickIT API (Status: ${healthRes.status})`);
+  }
+
+  const catRes = await fetch(`${API_URL}/api/categories`).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!catRes.ok) {
+    throw new Error(`Unable to fetch categories (Status: ${catRes.status})`);
+  }
+
+  const categories: Category[] = await catRes.json();
+  return { online: true, categories };
+}
+```
+
+**What it does:**  
+Sequentially checks backend health (`/api/health`) and fetches the list of request categories (`/api/categories`).
+- Throws clear human-readable error messages if network calls fail or return non-2xx status codes.
+- Returns `{ online: true, categories }` on success.
+
+---
+
+#### 3. `client/src/App.tsx` — React UI List Rendering & State Management
+
+**What it does:**  
+Renders the real categories array returned by `checkSystem()` dynamically rather than using hard-coded values. Maintains state transitions:
+- `idle`: Initial state before button click.
+- `loading`: Displays loading text while network requests are in-flight.
+- `success`: Renders `System Status: Online` and displays the numbered list of categories loaded from PostgreSQL.
+- `error`: Renders `System Status: Offline` and displays the error message.
+
+---
+
+#### 4. Automated Tests (`server/tests/lab-01/categories.test.ts` & `client/tests/lab-01/App.test.tsx`)
+
+- **Server Test (`categories.test.ts`):** Supertest integration test asserting `GET /api/categories` returns HTTP 200 and the four seeded categories in `id` order (`Account and Access`, `Hardware`, `Software`, `Network`).
+- **Client Test (`App.test.tsx`):** Vitest UI tests mocking `api.checkSystem()` to verify:
+  1. Header rendering.
+  2. Success state rendering **Online** badge and category items.
+  3. Error state rendering **Offline** badge and error message when `checkSystem()` throws.
+
+---
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| [`server/src/app.ts`](file:///c:/DATA/CPE/CPE334/toktickit/server/src/app.ts) | Implemented `GET /api/categories` route with Prisma query ordered by ID |
+| [`client/src/api.ts`](file:///c:/DATA/CPE/CPE334/toktickit/client/src/api.ts) | Updated `checkSystem()` to fetch categories from backend endpoint |
+| [`client/src/App.tsx`](file:///c:/DATA/CPE/CPE334/toktickit/client/src/App.tsx) | Updated React component to dynamically render backend categories and UI states |
+| [`server/tests/lab-01/categories.test.ts`](file:///c:/DATA/CPE/CPE334/toktickit/server/tests/lab-01/categories.test.ts) | Added Supertest integration test for `/api/categories` endpoint |
+| [`client/tests/lab-01/App.test.tsx`](file:///c:/DATA/CPE/CPE334/toktickit/client/tests/lab-01/App.test.tsx) | Added Vitest component tests verifying Online + category list success state and Offline error state |
+| [`docs/lab-01/tests.md`](file:///c:/DATA/CPE/CPE334/toktickit/docs/lab-01/tests.md) | Documented test evidence and PASS results for all 5 tests |
+| [`docs/lab-01/fin.md`](file:///c:/DATA/CPE/CPE334/toktickit/docs/lab-01/fin.md) | Updated implementation notes with Issue 4 code details and acceptance criteria verification |
+
+---
+
+### Acceptance Criteria Verification
+
+- ✅ **GET /api/categories retrieves categories from PostgreSQL through Prisma** ordered by `id`.
+- ✅ **Returns category ID and name in predictable order** (`Account and Access`, `Hardware`, `Software`, `Network`).
+- ✅ **Supertest test verifies the response** in `server/tests/lab-01/categories.test.ts`.
+- ✅ **React displays categories returned by the API** dynamically.
+- ✅ **Loading and error states shown** in UI.
+- ✅ **Vitest test verifies UI behavior** in `client/tests/lab-01/App.test.tsx`.

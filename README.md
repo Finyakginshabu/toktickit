@@ -1,4 +1,4 @@
-# TokTickIT
+# TokTickIT - IT Service Desk Application
 
 TokTickIT is an internal IT helpdesk request management system developed for the CPE334 Software Engineering course (Lab 01).
 
@@ -8,39 +8,60 @@ TokTickIT is an internal IT helpdesk request management system developed for the
 | :--- | :--- |
 | **Frontend** | React + TypeScript + Vite + Bootstrap |
 | **Backend** | Node.js + Express + TypeScript |
-| **Database** | PostgreSQL + Prisma |
+| **Database & ORM** | PostgreSQL + Prisma ORM |
 | **Architecture** | REST-style APIs |
-| **Testing** | Vitest and Supertest in Lab 1 |
+| **Testing** | Vitest and Supertest |
+
+---
 
 ## Project Structure
 
 ```text
 toktickit/
 ├── client/                 # React frontend application
-│   ├── src/
+│   ├── src/                # React components and API client
 │   │   ├── App.tsx
+│   │   ├── api.ts
 │   │   └── main.tsx
+│   ├── tests/              # Frontend Vitest test files
+│   │   └── lab-01/
+│   │       └── App.test.tsx
 │   ├── package.json
 │   └── vite.config.ts
 ├── server/                 # Express backend application
-│   ├── src/
-│   │   └── app.ts          # Express application setup
-│   ├── tests/              # Integration test suites
+│   ├── prisma/             # Prisma ORM configuration
+│   │   ├── schema.prisma   # Database schema
+│   │   └── seed.ts         # Idempotent seed script
+│   ├── src/                # Express application routes & controllers
+│   │   ├── app.ts
+│   │   ├── index.ts
+│   │   └── prisma.ts
+│   ├── tests/              # Backend Supertest test files
 │   │   └── lab-01/
-│   │       └── health.test.ts
-│   ├── .env.example
+│   │       ├── health.test.ts
+│   │       └── categories.test.ts
+│   ├── .env.example        # Environment variables template
 │   └── package.json
-├── docs/                   # Documentation files
+├── docs/                   # Course documentation and lab notes
 │   └── lab-01/
+│       ├── ai_use.md       # AI use log and reflection
+│       ├── reviewer.md     # Peer review record
+│       ├── tests.md        # Test plan and evidence
+│       └── fin.md          # Code implementation notes
 ├── .gitignore
 └── README.md
 ```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js (v18.x or higher)
 - npm (v9.x or higher)
+- Docker (for running PostgreSQL locally)
+
+---
 
 ### Environment Setup
 
@@ -55,63 +76,30 @@ toktickit/
    cp server/.env.example server/.env
    ```
 
-### Installation and Setup
-
-#### Backend Setup (`/server`)
-
-1. Navigate to the server directory:
-   ```bash
-   cd server
+3. Configure `server/.env` with your PostgreSQL database URL:
+   ```env
+   DATABASE_URL="postgresql://toktickit:toktickit@localhost:5432/toktickit?schema=public"
    ```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+---
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-   The backend API will run on `http://localhost:3000`.
-
-#### Frontend Setup (`/client`)
-
-1. Open a new terminal and navigate to the client directory:
-   ```bash
-   cd client
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-   The frontend application will run on `http://localhost:5173`.
-
-## Database Setup (using Docker)
+### Database Setup (using Docker)
 
 To run the PostgreSQL database using Docker:
 
-1. Ensure Docker is running on your system.
-2. Run the following command to start the PostgreSQL container:
+1. Start the PostgreSQL container:
    ```bash
    docker run --name toktickit-db -e POSTGRES_USER=toktickit -e POSTGRES_PASSWORD=toktickit -e POSTGRES_DB=toktickit -p 5432:5432 -d postgres
    ```
-   - This command creates a container named `toktickit-db`
-   - Maps port 5432 on your host to port 5432 in the container
-   - Runs the container in detached mode (`-d`)
 
-3. Verify the database is running:
+2. Verify the container is running:
    ```bash
    docker ps
    ```
 
-## Database Migration and Seeding
+---
+
+### Database Migration & Seeding
 
 To initialize the database schema and seed it with the required categories:
 
@@ -138,11 +126,48 @@ To initialize the database schema and seed it with the required categories:
    ```bash
    npx prisma db seed --preview-feature-flags,
    ```
-## Running Tests
 
-To run the backend automated tests (including the health check test):
+---
+
+### Running the Application
+
+#### Backend (`/server`)
 
 ```bash
 cd server
-npm test
+npm run dev
 ```
+The API server will run on `http://localhost:3000`.
+
+#### Frontend (`/client`)
+
+```bash
+cd client
+npm run dev
+```
+The React frontend application will run on `http://localhost:5173`.
+
+---
+
+## REST API Endpoints
+
+| Method | Endpoint | Description | Expected Response |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Service liveness probe | `200 OK` `{ "status": "ok", "service": "TokTickIT API" }` |
+| `GET` | `/api/categories` | List IT request categories | `200 OK` `[ { "id": 1, "name": "Account and Access" }, ... ]` |
+
+---
+
+## Running Tests
+
+- **Server Integration Tests (Supertest):**
+  ```bash
+  cd server
+  npm test
+  ```
+
+- **Client UI Tests (Vitest):**
+  ```bash
+  cd client
+  npm test
+  ```
