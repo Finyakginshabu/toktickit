@@ -21,13 +21,13 @@
 
 > Reviewer comment I received: During local testing, the feature can work without any issue. Additionally, the test instruction is clear and easy to read so all criteria are met. Really good job <3
 
-> How I responded: -
+> How I responded: Thanks for the review :P <3
 
 **PR https://github.com/Finyakginshabu/toktickit/pull/7** 
 
 > Reviewer comment I received: Everything works successfully. Great job ! All criteria have been met, and the instructions for setting up and testing the project are clear and easy to follow.
 
-> How I responded: -
+> How I responded: Thanks for the review :P <3
 
 **PR https://github.com/Finyakginshabu/toktickit/pull/8** 
 
@@ -37,8 +37,26 @@
 
 > Reviewer comment I received: All of changed files are updated, everything looks good ! From my testing, client and server test pass. This feature works fine and reaches all criteria.
 
-> How I responded: -
+> How I responded: Thanks for the review :P <3
 
 ## Pull Requests I reviewed for my partner
-My comment: <...>
-Partner's response: <...>
+
+** PR https://github.com/PingSupichaya/toktickit/pull/7 **
+> My comment: Very good, everything works fine for this issue, according to the criteria.
+
+> Partner's response: Thanks<3
+
+** PR https://github.com/PingSupichaya/toktickit/pull/8 **
+> My comment: Looks good to me :D readme instructions are clear for setup and testing. I've tested the status codes, error messages and others, everything follows the criteria and works just fine.
+
+> Partner's response: Happy to see this comment, thanks
+
+** PR https://github.com/PingSupichaya/toktickit/pull/9 **
+> My comment: I've reviewed this issue, and everything meets the criteria :D. Instructions provided are clear to setup. Prisma Category model and migration are properly configured, using upsert to add the specified categories without duplicates, and database credentials are not committed. Please make sure to resolve the conflict for readme and ai_use before merge.
+
+> Partner's response: Thanks for review. I will solve the merge conflict soon.
+
+** PR https://github.com/PingSupichaya/toktickit/pull/10 **
+> My comment: I've reviewed Issue #4, and it meets all the criteria. The categories endpoint works correctly, both Supertest and Vitest pass, and the web client properly displays categories from Prisma and Postgres. Also when server is not running, it shows "Load failed" as expected. Well done for Lab01 <3
+
+> Partner's response: Thanks both of you for reviews <3
