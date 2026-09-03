@@ -11,10 +11,95 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Issue 3 — Create and seed IT request categories
+// Lab 2 Enums
 // ---------------------------------------------------------------------------
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+// ---------------------------------------------------------------------------
+// Lab 2 Models
+// ---------------------------------------------------------------------------
+model RequesterUser {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  department String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  tickets    Ticket[]
+
+  @@index([isActive])
+}
+
 model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+
+  @@index([isActive])
+}
+
+model Ticket {
+  id                 Int           @id @default(autoincrement())
+  ticketNumber       String        @unique
+  requesterId        Int
+  categoryId         Int
+  relatedSystemId    Int
+  summary            String        @db.VarChar(100)
+  description        String        @db.VarChar(2000)
+  requestedPriority  Priority      @default(MEDIUM)
+  itPriority         Priority      @default(MEDIUM)
+  currentStatus      TicketStatus  @default(NEW)
+  ticketOwnerId      Int?
+  resolutionSummary  String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  requester          RequesterUser @relation(fields: [requesterId], references: [id])
+  category           Category      @relation(fields: [categoryId], references: [id])
+  relatedSystem      RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  attachments        Attachment[]
+
+  @@index([requesterId, createdAt])
+  @@index([currentStatus])
+  @@index([ticketNumber])
+}
+
+model Attachment {
+  id            Int       @id @default(autoincrement())
+  ticketId      Int
+  fileName      String
+  originalName  String
+  fileSize      Int
+  mimeType      String
+  storagePath   String
+  isRemoved     Boolean   @default(false)
+  removedReason String?
+  removedAt     DateTime?
+  uploadedAt    DateTime  @default(now())
+
+  ticket        Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, isRemoved])
 }
