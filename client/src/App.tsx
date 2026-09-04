@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
 import AppHeader from "./components/AppHeader.js";
 import RequesterSelectorModal from "./components/RequesterSelectorModal.js";
+import CreateTicketForm from "./components/CreateTicketForm.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
@@ -96,18 +97,7 @@ function MainContent() {
         </div>
       )}
 
-      {activeTab === "create-ticket" && (
-        <div className="zen-card p-4">
-          <h1 className="h4 fw-bold mb-1">Create IT Support Ticket</h1>
-          <p className="text-muted mb-3">
-            Submitting as <strong className="text-dark">{requester?.name ?? "Guest"}</strong>
-          </p>
-          <div className="zen-callout-info">
-            <strong>Ready for Issue 4:</strong> Create Ticket form with file attachments and validation will be connected in Issue 4.
-          </div>
-          <SystemHealthWidget />
-        </div>
-      )}
+      {activeTab === "create-ticket" && <CreateTicketForm />}
     </div>
   );
 }

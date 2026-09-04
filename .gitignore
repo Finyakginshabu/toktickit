@@ -13,3 +13,6 @@ server/prisma/*.db
 *.log
 .DS_Store
 docs/issues
+# uploads
+server/uploads/
+uploads/
