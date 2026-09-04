@@ -3,6 +3,7 @@ import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
 import AppHeader from "./components/AppHeader.js";
 import RequesterSelectorModal from "./components/RequesterSelectorModal.js";
 import CreateTicketForm from "./components/CreateTicketForm.js";
+import MyTicketsList from "./components/MyTicketsList.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
@@ -75,26 +76,15 @@ function SystemHealthWidget() {
 }
 
 function MainContent() {
-  const { requester, activeTab } = useRequester();
+  const { activeTab } = useRequester();
 
   return (
     <div className="container py-4">
       {activeTab === "my-tickets" && (
-        <div className="zen-card p-4">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <h1 className="h4 fw-bold mb-1">My Tickets</h1>
-              <p className="text-muted mb-0">
-                Viewing support requests for{" "}
-                <strong className="text-dark">{requester?.name ?? "Guest"}</strong>
-              </p>
-            </div>
-          </div>
-          <div className="zen-callout-info">
-            <strong>Ready for Issue 5:</strong> My Tickets dashboard with search, filtering, and pagination will be connected in Issue 5.
-          </div>
+        <>
+          <MyTicketsList />
           <SystemHealthWidget />
-        </div>
+        </>
       )}
 
       {activeTab === "create-ticket" && <CreateTicketForm />}
