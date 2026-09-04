@@ -259,7 +259,7 @@ export default function MyTicketsList() {
       </div>
 
       {/* Error Notice */}
-      {error && (
+      {error ? (
         <div className="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
           <span className="material-symbols-outlined fs-5">error</span>
           <div>{error}</div>
@@ -271,10 +271,7 @@ export default function MyTicketsList() {
             Retry
           </button>
         </div>
-      )}
-
-      {/* Loading Indicator */}
-      {loading ? (
+      ) : loading ? (
         <div className="text-center py-5">
           <div className="spinner-border text-success mb-2" role="status" />
           <div className="text-muted small">Loading tickets…</div>
