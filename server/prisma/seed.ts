@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getPrisma } from "../src/prisma.js";
 
 // Lab 2 Seed Data: Categories, Related Systems, and Development Requesters
@@ -225,7 +227,63 @@ async function main() {
       });
     }
   }
-  console.log(`✓ Seeded demo tickets for Jennifer Anderson and David Lee successfully.`);
+
+  // 5. Seed Demo Attachments for TKT-2026-000001
+  const tkt1 = await prisma.ticket.findUnique({ where: { ticketNumber: "TKT-2026-000001" } });
+  if (tkt1) {
+    const uploadDir = path.join(process.cwd(), "uploads", "attachments");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const samplePdfPath = path.join(uploadDir, "sample_battery_report.pdf");
+    if (!fs.existsSync(samplePdfPath)) {
+      fs.writeFileSync(samplePdfPath, "%PDF-1.4 sample pdf file for ticket testing");
+    }
+
+    const samplePngPath = path.join(uploadDir, "sample_old_diagnostic.png");
+    if (!fs.existsSync(samplePngPath)) {
+      fs.writeFileSync(samplePngPath, "dummy png content");
+    }
+
+    const existingActive = await prisma.attachment.findFirst({
+      where: { ticketId: tkt1.id, originalName: "battery_report.pdf" },
+    });
+    if (!existingActive) {
+      await prisma.attachment.create({
+        data: {
+          ticketId: tkt1.id,
+          fileName: "sample_battery_report.pdf",
+          originalName: "battery_report.pdf",
+          fileSize: 42,
+          mimeType: "application/pdf",
+          storagePath: "uploads/attachments/sample_battery_report.pdf",
+          isRemoved: false,
+        },
+      });
+    }
+
+    const existingRemoved = await prisma.attachment.findFirst({
+      where: { ticketId: tkt1.id, originalName: "old_diagnostic.png" },
+    });
+    if (!existingRemoved) {
+      await prisma.attachment.create({
+        data: {
+          ticketId: tkt1.id,
+          fileName: "sample_old_diagnostic.png",
+          originalName: "old_diagnostic.png",
+          fileSize: 1024,
+          mimeType: "image/png",
+          storagePath: "uploads/attachments/sample_old_diagnostic.png",
+          isRemoved: true,
+          removedReason: "Uploaded incorrect diagnostic report",
+          removedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  console.log(`✓ Seeded demo tickets and attachments for Jennifer Anderson and David Lee successfully.`);
 }
 
 main()

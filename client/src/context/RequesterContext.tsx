@@ -8,11 +8,13 @@ interface RequesterContextType {
   loadingRequesters: boolean;
   requesterError: string | null;
   isSelectorOpen: boolean;
-  activeTab: "my-tickets" | "create-ticket";
+  activeTab: "my-tickets" | "create-ticket" | "ticket-detail";
+  selectedTicketId: number | null;
   setRequester: (req: RequesterUser | null) => void;
   openSelector: () => void;
   closeSelector: () => void;
-  setActiveTab: (tab: "my-tickets" | "create-ticket") => void;
+  setActiveTab: (tab: "my-tickets" | "create-ticket" | "ticket-detail") => void;
+  setSelectedTicketId: (id: number | null) => void;
   refreshRequesters: () => Promise<void>;
 }
 
@@ -26,7 +28,9 @@ export function RequesterProvider({ children }: { children: React.ReactNode }) {
   const [loadingRequesters, setLoadingRequesters] = useState<boolean>(true);
   const [requesterError, setRequesterError] = useState<string | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("my-tickets");
+  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket" | "ticket-detail">("my-tickets");
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+
 
   async function refreshRequesters() {
     setLoadingRequesters(true);
@@ -62,6 +66,10 @@ export function RequesterProvider({ children }: { children: React.ReactNode }) {
 
   function setRequester(req: RequesterUser | null) {
     setRequesterState(req);
+    setSelectedTicketId(null);
+    if (activeTab === "ticket-detail") {
+      setActiveTab("my-tickets");
+    }
     if (req) {
       localStorage.setItem(LOCAL_STORAGE_KEY, String(req.id));
       setIsSelectorOpen(false);
@@ -90,10 +98,12 @@ export function RequesterProvider({ children }: { children: React.ReactNode }) {
         requesterError,
         isSelectorOpen,
         activeTab,
+        selectedTicketId,
         setRequester,
         openSelector,
         closeSelector,
         setActiveTab,
+        setSelectedTicketId,
         refreshRequesters,
       }}
     >

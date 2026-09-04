@@ -3,7 +3,7 @@ import { useRequester } from "../context/RequesterContext.js";
 import { getTickets, getCategories, Category, Ticket, Priority, TicketStatus } from "../api.js";
 
 export default function MyTicketsList() {
-  const { requester, setActiveTab } = useRequester();
+  const { requester, setActiveTab, setSelectedTicketId } = useRequester();
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -364,8 +364,35 @@ export default function MyTicketsList() {
               </thead>
               <tbody>
                 {tickets.map((t) => (
-                  <tr key={t.id}>
-                    <td className="fw-semibold text-success">{t.ticketNumber}</td>
+                  <tr
+                    key={t.id}
+                    onClick={() => {
+                      setSelectedTicketId(t.id);
+                      setActiveTab("ticket-detail");
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedTicketId(t.id);
+                        setActiveTab("ticket-detail");
+                      }
+                    }}
+                  >
+                    <td className="fw-semibold text-success">
+                      <button
+                        type="button"
+                        className="btn btn-link p-0 text-decoration-none fw-semibold text-success"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTicketId(t.id);
+                          setActiveTab("ticket-detail");
+                        }}
+                      >
+                        {t.ticketNumber}
+                      </button>
+                    </td>
                     <td className="text-muted small">{formatDate(t.createdAt)}</td>
                     <td className="fw-medium text-truncate" style={{ maxWidth: 280 }} title={t.summary}>
                       {t.summary}
@@ -397,7 +424,23 @@ export default function MyTicketsList() {
           {/* Mobile Stacked Cards (< 768px) */}
           <div className="d-flex flex-column gap-3 d-md-none mb-4">
             {tickets.map((t) => (
-              <div key={t.id} className="zen-ticket-card">
+              <div
+                key={t.id}
+                className="zen-ticket-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setSelectedTicketId(t.id);
+                  setActiveTab("ticket-detail");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedTicketId(t.id);
+                    setActiveTab("ticket-detail");
+                  }
+                }}
+              >
                 <div className="d-flex justify-content-between align-items-start mb-2">
                   <span className="fw-bold text-success">{t.ticketNumber}</span>
                   {formatStatusBadge(t.currentStatus)}
