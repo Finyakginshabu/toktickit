@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import App from "../../src/App.js";
 import * as api from "../../src/api.js";
 
@@ -35,6 +35,10 @@ describe("Lab 2 Create Ticket Suite (client/tests/lab-02/CreateTicket.test.tsx)"
     vi.spyOn(api, "getRequesters").mockResolvedValue(mockActiveRequesters);
     vi.spyOn(api, "getCategories").mockResolvedValue(mockCategories);
     vi.spyOn(api, "getRelatedSystems").mockResolvedValue(mockRelatedSystems);
+    vi.spyOn(api, "getTickets").mockResolvedValue({
+      data: [],
+      pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 },
+    });
   });
 
   // UI-01: Development Requester selector on initial load
@@ -80,7 +84,8 @@ describe("Lab 2 Create Ticket Suite (client/tests/lab-02/CreateTicket.test.tsx)"
     });
 
     // Click "Create Ticket" navigation tab
-    const createTab = screen.getByRole("button", { name: /Create Ticket/i });
+    const nav = screen.getByRole("navigation");
+    const createTab = within(nav).getByRole("button", { name: /Create Ticket/i });
     fireEvent.click(createTab);
 
     // Wait for form to load

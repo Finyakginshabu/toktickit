@@ -61,3 +61,15 @@ export interface PaginatedTicketsResponse {
     totalPages: number;
   };
 }
+
+export interface GetTicketsParams {
+  requesterId: number;
+  search?: string;
+  categoryId?: number;
+  priority?: Priority;
+  status?: TicketStatus;
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}

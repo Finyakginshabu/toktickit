@@ -244,59 +244,74 @@ app.post(
         });
       }
 
-      // Create ticket & attachments in an atomic transaction
-      const newTicket = await prisma.$transaction(async (tx) => {
-        const ticketNumber = await generateTicketNumber(tx);
+      // Create ticket & attachments in an atomic transaction with concurrency retry
+      let newTicket;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 5;
 
-        const ticket = await tx.ticket.create({
-          data: {
-            ticketNumber,
-            requesterId: parsedRequesterId,
-            categoryId: parsedCategoryId,
-            relatedSystemId: parsedRelatedSystemId,
-            summary: trimmedSummary,
-            description: trimmedDescription,
-            requestedPriority: upperPriority as Priority,
-            itPriority: upperPriority as Priority,
-            currentStatus: TicketStatus.NEW,
-          },
-        });
+      while (attempts < MAX_ATTEMPTS) {
+        try {
+          newTicket = await prisma.$transaction(async (tx) => {
+            const ticketNumber = await generateTicketNumber(tx);
 
-        // Insert attachments if any
-        if (files.length > 0) {
-          await tx.attachment.createMany({
-            data: files.map((f) => ({
-              ticketId: ticket.id,
-              fileName: f.filename,
-              originalName: f.originalname,
-              fileSize: f.size,
-              mimeType: f.mimetype,
-              storagePath: path.relative(process.cwd(), f.path),
-              isRemoved: false,
-            })),
-          });
-        }
-
-        return tx.ticket.findUnique({
-          where: { id: ticket.id },
-          include: {
-            category: { select: { id: true, name: true } },
-            relatedSystem: { select: { id: true, name: true } },
-            requester: { select: { id: true, name: true, email: true, department: true } },
-            attachments: {
-              where: { isRemoved: false },
-              select: {
-                id: true,
-                originalName: true,
-                fileSize: true,
-                mimeType: true,
-                isRemoved: true,
-                uploadedAt: true,
+            const ticket = await tx.ticket.create({
+              data: {
+                ticketNumber,
+                requesterId: parsedRequesterId,
+                categoryId: parsedCategoryId,
+                relatedSystemId: parsedRelatedSystemId,
+                summary: trimmedSummary,
+                description: trimmedDescription,
+                requestedPriority: upperPriority as Priority,
+                itPriority: upperPriority as Priority,
+                currentStatus: TicketStatus.NEW,
               },
-            },
-          },
-        });
-      });
+            });
+
+            // Insert attachments if any
+            if (files.length > 0) {
+              await tx.attachment.createMany({
+                data: files.map((f) => ({
+                  ticketId: ticket.id,
+                  fileName: f.filename,
+                  originalName: f.originalname,
+                  fileSize: f.size,
+                  mimeType: f.mimetype,
+                  storagePath: path.relative(process.cwd(), f.path),
+                  isRemoved: false,
+                })),
+              });
+            }
+
+            return tx.ticket.findUnique({
+              where: { id: ticket.id },
+              include: {
+                category: { select: { id: true, name: true } },
+                relatedSystem: { select: { id: true, name: true } },
+                requester: { select: { id: true, name: true, email: true, department: true } },
+                attachments: {
+                  where: { isRemoved: false },
+                  select: {
+                    id: true,
+                    originalName: true,
+                    fileSize: true,
+                    mimeType: true,
+                    isRemoved: true,
+                    uploadedAt: true,
+                  },
+                },
+              },
+            });
+          });
+          break;
+        } catch (txErr: any) {
+          if (txErr.code === "P2002" && txErr.meta?.target?.includes("ticketNumber")) {
+            attempts++;
+            continue;
+          }
+          throw txErr;
+        }
+      }
 
       return res.status(201).json(newTicket);
     } catch (_err) {
@@ -310,5 +325,136 @@ app.post(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Lab 2 — My Tickets List
+// GET /api/tickets (search, filters, sorting, pagination, ownership isolation)
+// ---------------------------------------------------------------------------
+app.get("/api/tickets", async (req: Request, res: Response) => {
+  try {
+    const { requesterId, search, categoryId, priority, status, page, pageSize, sortBy, sortOrder } = req.query;
+
+    if (!requesterId) {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST",
+          message: "requesterId query parameter is required.",
+        },
+      });
+    }
+
+    const parsedRequesterId = parseInt(requesterId as string, 10);
+    if (isNaN(parsedRequesterId) || parsedRequesterId <= 0) {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST",
+          message: "requesterId must be a valid positive integer.",
+        },
+      });
+    }
+
+    const prisma = getPrisma();
+
+    // Build query filter with strict ownership
+    const where: any = {
+      requesterId: parsedRequesterId,
+    };
+
+    // Keyword search on summary and ticket number (case-insensitive)
+    if (search && typeof search === "string" && search.trim().length > 0) {
+      const trimmedSearch = search.trim();
+      where.OR = [
+        { summary: { contains: trimmedSearch, mode: "insensitive" } },
+        { ticketNumber: { contains: trimmedSearch, mode: "insensitive" } },
+      ];
+    }
+
+    // Category filter
+    if (categoryId) {
+      const parsedCatId = parseInt(categoryId as string, 10);
+      if (!isNaN(parsedCatId)) {
+        where.categoryId = parsedCatId;
+      }
+    }
+
+    // Priority filter
+    if (priority && typeof priority === "string") {
+      const upperPriority = priority.toUpperCase();
+      if (Object.values(Priority).includes(upperPriority as Priority)) {
+        where.requestedPriority = upperPriority as Priority;
+      }
+    }
+
+    // Status filter
+    if (status && typeof status === "string") {
+      const upperStatus = status.toUpperCase();
+      if (Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
+        where.currentStatus = upperStatus as TicketStatus;
+      }
+    }
+
+    // Pagination clamping (BR-14: 1 <= pageSize <= 50, page >= 1)
+    const parsedPage = Math.max(1, parseInt(page as string, 10) || 1);
+    const parsedPageSize = Math.min(50, Math.max(1, parseInt(pageSize as string, 10) || 10));
+    const skip = (parsedPage - 1) * parsedPageSize;
+
+    // Sorting (default: createdAt desc, secondary: id desc)
+    const validSortFields = ["createdAt", "requestedPriority", "ticketNumber", "currentStatus"];
+    const sortField = validSortFields.includes(sortBy as string) ? (sortBy as string) : "createdAt";
+    const direction: "asc" | "desc" = (sortOrder as string)?.toLowerCase() === "asc" ? "asc" : "desc";
+    const orderBy = [
+      { [sortField]: direction },
+      { id: "desc" as const },
+    ];
+
+    const [total, tickets] = await prisma.$transaction([
+      prisma.ticket.count({ where }),
+      prisma.ticket.findMany({
+        where,
+        skip,
+        take: parsedPageSize,
+        orderBy,
+        include: {
+          category: { select: { id: true, name: true } },
+          relatedSystem: { select: { id: true, name: true } },
+          _count: {
+            select: {
+              attachments: {
+                where: { isRemoved: false },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const formattedTickets = tickets.map((t) => {
+      const { _count, ...rest } = t;
+      return {
+        ...rest,
+        attachmentCount: _count?.attachments ?? 0,
+      };
+    });
+
+    const totalPages = total === 0 ? 1 : Math.ceil(total / parsedPageSize);
+
+    return res.status(200).json({
+      data: formattedTickets,
+      pagination: {
+        page: parsedPage,
+        pageSize: parsedPageSize,
+        total,
+        totalPages,
+      },
+    });
+  } catch (_err) {
+    return res.status(500).json({
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Failed to retrieve tickets.",
+      },
+    });
+  }
+});
 
 export default app;

@@ -263,3 +263,83 @@ body {
   z-index: 1050;
   padding: 16px;
 }
+
+/* Status Badges (Zen Green Spec) */
+.badge-status-new {
+  background-color: #EAF6EF;
+  color: #006B3C;
+  border: 1px solid #B8E2C8;
+  font-weight: 600;
+}
+
+.badge-status-in-progress {
+  background-color: #EBF8FF;
+  color: #2B6CB0;
+  border: 1px solid #BEE3F8;
+  font-weight: 600;
+}
+
+.badge-status-pending {
+  background-color: #FEFCBF;
+  color: #975A16;
+  border: 1px solid #FAF089;
+  font-weight: 600;
+}
+
+.badge-status-resolved,
+.badge-status-closed {
+  background-color: #EDF2F7;
+  color: #4A5568;
+  border: 1px solid #E2E8F0;
+  font-weight: 600;
+}
+
+/* Priority Badges (Zen Green Spec) */
+.badge-priority-low {
+  background-color: #EDF2F7;
+  color: #4A5568;
+  font-weight: 500;
+}
+
+.badge-priority-medium {
+  background-color: #E6FFFA;
+  color: #234E52;
+  font-weight: 600;
+}
+
+.badge-priority-high {
+  background-color: #FEEBC8;
+  color: #7B341E;
+  font-weight: 600;
+}
+
+.badge-priority-urgent {
+  background-color: #FED7D7;
+  color: #9B2C2C;
+  font-weight: 700;
+}
+
+/* Table Hover & Styling */
+.zen-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.zen-table tbody tr:hover {
+  background-color: #F5F7F6;
+}
+
+/* Mobile Ticket Card (<768px) */
+.zen-ticket-card {
+  background: #ffffff;
+  border: 1px solid var(--color-border-neutral);
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.zen-ticket-card:hover,
+.zen-ticket-card:active {
+  border-color: var(--color-primary-green);
+  box-shadow: 0 2px 6px rgba(0, 107, 60, 0.08);
+}
