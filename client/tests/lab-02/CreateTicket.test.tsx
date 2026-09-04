@@ -113,6 +113,28 @@ describe("Lab 2 Create Ticket Suite (client/tests/lab-02/CreateTicket.test.tsx)"
     expect(await screen.findByText(/exceeds the 5 MB limit/i)).toBeInTheDocument();
   });
 
+  // UI-04-B: Drag-and-drop file attachment
+  it("accepts valid file attachments dropped directly into the dropzone (UI-04, AC-03)", async () => {
+    await setupCreateTicketView();
+
+    const validFile = new File(["dummy pdf content"], "network_diagnostic.pdf", {
+      type: "application/pdf",
+    });
+
+    const dropzone = screen.getByText(/Drag and drop files here/i).closest("div")!;
+    
+    // Simulate drag over and drop
+    fireEvent.dragOver(dropzone);
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [validFile],
+      },
+    });
+
+    expect(await screen.findByText("network_diagnostic.pdf")).toBeInTheDocument();
+    expect(screen.getByText(/Selected Files \(1\/5\)/i)).toBeInTheDocument();
+  });
+
   // UI-05: Submit button busy state
   it("displays busy loading state on submit button during submission (UI-05, AC-05, BR-08)", async () => {
     let resolvePromise: (val: any) => void;

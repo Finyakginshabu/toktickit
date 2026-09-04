@@ -26,6 +26,7 @@ export default function CreateTicketForm() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [createdTicket, setCreatedTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
@@ -365,10 +366,48 @@ export default function CreateTicketForm() {
               Attachments <span className="text-muted fw-normal">(Optional, max 5 files, ≤ 5 MB each)</span>
             </label>
 
-            <div className="border border-2 border-dashed rounded p-3 text-center bg-light">
-              <span className="material-symbols-outlined fs-2 text-muted mb-1">upload_file</span>
-              <p className="text-muted small mb-2">
-                Drag and drop files here, or click below to browse (JPG, PNG, WEBP, PDF)
+            <div
+              className={`border border-2 border-dashed rounded p-3 text-center transition-all ${
+                isDragging
+                  ? "border-success bg-white shadow-sm"
+                  : "bg-light"
+              }`}
+              style={{
+                borderColor: isDragging ? "var(--color-primary-green)" : "#D8E2DC",
+                backgroundColor: isDragging ? "var(--color-pale-green)" : "#F8F9FA",
+                cursor: "pointer",
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isSubmitting && files.length < 5) setIsDragging(true);
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isSubmitting && files.length < 5) setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragging(false);
+                if (!isSubmitting && files.length < 5) {
+                  handleFileSelection(e.dataTransfer.files);
+                }
+              }}
+            >
+              <span className={`material-symbols-outlined fs-2 mb-1 ${isDragging ? "text-success" : "text-muted"}`}>
+                upload_file
+              </span>
+              <p className={`small mb-2 ${isDragging ? "text-success fw-semibold" : "text-muted"}`}>
+                {isDragging
+                  ? "Drop files here to attach..."
+                  : "Drag and drop files here, or click below to browse (JPG, PNG, WEBP, PDF)"}
               </p>
               <input
                 id="ticket-file-input"

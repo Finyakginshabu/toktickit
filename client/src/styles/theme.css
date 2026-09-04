@@ -70,6 +70,75 @@ body {
   font-weight: 600;
 }
 
+/* Mobile Responsive Navigation (Best Practices) */
+.zen-nav-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.zen-nav-toggle:hover,
+.zen-nav-toggle:focus {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  outline: none;
+}
+
+.zen-mobile-menu {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  animation: zenFadeSlideDown 0.2s ease-out;
+}
+
+@keyframes zenFadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.zen-mobile-nav-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.zen-mobile-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.zen-mobile-nav-link.active {
+  background-color: var(--color-secondary-green);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.zen-mobile-requester-box {
+  background-color: rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
 /* Cards */
 .zen-card {
   background-color: var(--color-surface-card);
