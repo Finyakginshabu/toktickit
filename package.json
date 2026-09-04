@@ -11,6 +11,7 @@
     "test:all": "npm run test:server && npm run test:client && npm run test:e2e"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.1"
+    "@playwright/test": "^1.50.1",
+    "@types/node": "^26.4.1"
   }
 }

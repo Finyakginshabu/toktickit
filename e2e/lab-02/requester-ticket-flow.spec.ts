@@ -67,6 +67,19 @@ test.describe("Lab 2 Requester Ticket Flow E2E Suite", () => {
     await expect(page.locator("table.zen-table")).toContainText(uniqueSummary);
     await expect(page.locator("table.zen-table")).toContainText("HIGH");
     await expect(page.locator("table.zen-table")).toContainText("NEW");
+
+    // 9. Verify Responsive Fidelity: zero horizontal scroll across Desktop, Tablet, Mobile (AC-19)
+    for (const vp of [
+      { name: "Desktop", width: 1280, height: 800 },
+      { name: "Tablet", width: 768, height: 1024 },
+      { name: "Mobile", width: 375, height: 667 },
+    ]) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      const hasHorizontalScroll = await page.evaluate(() => {
+        return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+      });
+      expect(hasHorizontalScroll).toBe(false);
+    }
   });
 
   // E2E-02: Multi-user isolation journey: Switch Requester A to B
@@ -141,8 +154,15 @@ test.describe("Lab 2 Requester Ticket Flow E2E Suite", () => {
     // Verify newly uploaded attachment is listed in the active attachments
     await expect(attachmentSection).toContainText(uniqueFileName, { timeout: 10000 });
 
-    // 5. Test Soft Removal Modal
+    // 4.5. Test Download of active attachment (AC-15, AC-18)
     const itemContainer = page.locator(`div:has-text("${uniqueFileName}")`).locator("xpath=ancestor::div[contains(@class, 'justify-content-between')]").first();
+    const downloadPromise = page.waitForEvent("download");
+    const downloadLink = itemContainer.locator(`a[aria-label="Download ${uniqueFileName}"]`);
+    await downloadLink.click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(uniqueFileName);
+
+    // 5. Test Soft Removal Modal
     const removeBtn = itemContainer.locator('button:has-text("Remove")');
     await removeBtn.click();
 
