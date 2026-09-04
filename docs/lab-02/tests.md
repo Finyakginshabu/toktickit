@@ -12,32 +12,32 @@ Testing for Lab 2 follows a multi-layered verification strategy combining automa
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **API-01** | API | AC-01, FR-04, BR-01 | Create valid ticket with all required fields | `201 Created`, unique `TKT-YYYY-XXXXXX` generated, status `NEW` | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| **API-02** | API | AC-02, BR-06 | Create ticket with missing summary or short description | `400 Bad Request` with field validation errors | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| **API-03** | API | AC-03, BR-09 | Create ticket with 2 valid attachments (PNG, PDF) | `201 Created`, attachments persisted on disk & DB | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| **API-04** | API | AC-04, BR-09 | Create ticket with attachment exceeding 5 MB or 0-byte | `413 Payload Too Large` or `400 Bad Request`, ticket not created | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| **API-05** | API | AC-08, BR-04 | Retrieve Requesters endpoint | `200 OK`, returns only active requesters (`isActive = true`) | `server/tests/lab-02/create-ticket.api.test.ts` | Planned |
-| **API-06** | API | AC-10, BR-05 | Retrieve My Tickets for Requester A | `200 OK`, returns only tickets where `requesterId == A` | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| **API-07** | API | AC-11, FR-09 | My Tickets search query and category filter | `200 OK`, returns filtered subset matching keyword & category | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| **API-08** | API | AC-11, FR-10 | My Tickets pagination metadata and sorting | `200 OK`, returns requested page, page size, total pages | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| **API-09** | API | AC-13, FR-11 | Retrieve owned Ticket Detail | `200 OK`, returns complete header, requester info, attachments | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| **API-10** | API | AC-14, BR-05 | Requester A requests Requester B's ticket | `403 Forbidden` or `404 Not Found` | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| **API-11** | API | AC-15, FR-14 | Add new attachment to existing owned ticket | `201 Created`, attachment added to ticket | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| **API-12** | API | AC-16, BR-10 | Add 6th active attachment to ticket with 5 attachments | `400 Bad Request`, upload rejected | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| **API-13** | API | AC-17, BR-11 | Soft-remove attachment with reason | `200 OK`, `isRemoved = true`, `removedReason` saved | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| **API-14** | API | AC-18, BR-12 | Download soft-removed attachment binary | `410 Gone` or `404 Not Found`, download blocked | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| **UI-01** | UI | AC-07, AC-08 | Development Requester selector renders and selects user | Selector renders active users only; selection updates context | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| **UI-02** | UI | AC-09, FR-02 | Change Requester action updates application shell | Header reflects new requester and triggers data reload | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
-| **UI-03** | UI | AC-02, BR-06 | Create Ticket form client validation on empty submit | Displays inline error messages under Summary and Description | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| **UI-04** | UI | AC-04, BR-09 | Create Ticket file dropzone rejects >5MB and invalid type | Displays attachment error badge, disables submission | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| **UI-05** | UI | AC-05, BR-08 | Create Ticket submit button displays busy state | Button disabled with "Submitting..." spinner during request | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| **UI-06** | UI | AC-06, BR-07 | Backend offline preserves entered form values | Error banner displayed; summary and description retained | `client/tests/lab-02/CreateTicket.test.tsx` | Planned |
-| **UI-07** | UI | AC-10, AC-12 | My Tickets renders table, empty state, and no-results state | Renders correct UI states based on API response | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
-| **UI-08** | UI | AC-13, AC-14 | Ticket Detail renders read-only fields and unauthorized alert | Header fields disabled; cross-access shows error alert | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Planned |
-| **UI-09** | UI | AC-15, AC-17 | Attachment Section handles add, download, and soft-removal | Renders active/removed items, enforces 5-cap, captures reason | `client/tests/lab-02/AttachmentSection.test.tsx` | Planned |
-| **E2E-01** | E2E | AC-01, AC-10 | Full Requester journey: Select user -> Create ticket -> View in My Tickets | Ticket created, unique number generated, listed in dashboard | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| **E2E-02** | E2E | AC-09, AC-10 | Multi-user isolation journey: Switch Requester A to B | Requester A tickets disappear when switching to Requester B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| **E2E-03** | E2E | AC-15, AC-17 | Attachment lifecycle journey: Add, download, soft-remove | File uploaded, downloaded, soft-removed with reason | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
+| **API-01** | API | AC-01, FR-04, BR-01 | Create valid ticket with all required fields | `201 Created`, unique `TKT-YYYY-XXXXXX` generated, status `NEW` | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
+| **API-02** | API | AC-02, BR-06 | Create ticket with missing summary or short description | `400 Bad Request` with field validation errors | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
+| **API-03** | API | AC-03, BR-09 | Create ticket with 2 valid attachments (PNG, PDF) | `201 Created`, attachments persisted on disk & DB | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
+| **API-04** | API | AC-04, BR-09 | Create ticket with attachment exceeding 5 MB or 0-byte | `413 Payload Too Large` or `400 Bad Request`, ticket not created | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
+| **API-05** | API | AC-08, BR-04 | Retrieve Requesters endpoint | `200 OK`, returns only active requesters (`isActive = true`) | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
+| **API-06** | API | AC-10, BR-05 | Retrieve My Tickets for Requester A | `200 OK`, returns only tickets where `requesterId == A` | `server/tests/lab-02/my-tickets.api.test.ts` | Passed |
+| **API-07** | API | AC-11, FR-09 | My Tickets search query and category filter | `200 OK`, returns filtered subset matching keyword & category | `server/tests/lab-02/my-tickets.api.test.ts` | Passed |
+| **API-08** | API | AC-11, FR-10 | My Tickets pagination metadata and sorting | `200 OK`, returns requested page, page size, total pages | `server/tests/lab-02/my-tickets.api.test.ts` | Passed |
+| **API-09** | API | AC-13, FR-11 | Retrieve owned Ticket Detail | `200 OK`, returns complete header, requester info, attachments | `server/tests/lab-02/ticket-detail.api.test.ts` | Passed |
+| **API-10** | API | AC-14, BR-05 | Requester A requests Requester B's ticket | `403 Forbidden` or `404 Not Found` | `server/tests/lab-02/ticket-detail.api.test.ts` | Passed |
+| **API-11** | API | AC-15, FR-14 | Add new attachment to existing owned ticket | `201 Created`, attachment added to ticket | `server/tests/lab-02/attachments.api.test.ts` | Passed |
+| **API-12** | API | AC-16, BR-10 | Add 6th active attachment to ticket with 5 attachments | `400 Bad Request`, upload rejected | `server/tests/lab-02/attachments.api.test.ts` | Passed |
+| **API-13** | API | AC-17, BR-11 | Soft-remove attachment with reason | `200 OK`, `isRemoved = true`, `removedReason` saved | `server/tests/lab-02/attachments.api.test.ts` | Passed |
+| **API-14** | API | AC-18, BR-12 | Download soft-removed attachment binary | `410 Gone` or `404 Not Found`, download blocked | `server/tests/lab-02/attachments.api.test.ts` | Passed |
+| **UI-01** | UI | AC-07, AC-08 | Development Requester selector renders and selects user | Selector renders active users only; selection updates context | `client/tests/lab-02/CreateTicket.test.tsx` | Passed |
+| **UI-02** | UI | AC-09, FR-02 | Change Requester action updates application shell | Header reflects new requester and triggers data reload | `client/tests/lab-02/MyTickets.test.tsx` | Passed |
+| **UI-03** | UI | AC-02, BR-06 | Create Ticket form client validation on empty submit | Displays inline error messages under Summary and Description | `client/tests/lab-02/CreateTicket.test.tsx` | Passed |
+| **UI-04** | UI | AC-04, BR-09 | Create Ticket file dropzone rejects >5MB and invalid type | Displays attachment error badge, disables submission | `client/tests/lab-02/CreateTicket.test.tsx` | Passed |
+| **UI-05** | UI | AC-05, BR-08 | Create Ticket submit button displays busy state | Button disabled with "Submitting..." spinner during request | `client/tests/lab-02/CreateTicket.test.tsx` | Passed |
+| **UI-06** | UI | AC-06, BR-07 | Backend offline preserves entered form values | Error banner displayed; summary and description retained | `client/tests/lab-02/CreateTicket.test.tsx` | Passed |
+| **UI-07** | UI | AC-10, AC-12 | My Tickets renders table, empty state, and no-results state | Renders correct UI states based on API response | `client/tests/lab-02/MyTickets.test.tsx` | Passed |
+| **UI-08** | UI | AC-13, AC-14 | Ticket Detail renders read-only fields and unauthorized alert | Header fields disabled; cross-access shows error alert | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Passed |
+| **UI-09** | UI | AC-15, AC-17 | Attachment Section handles add, download, and soft-removal | Renders active/removed items, enforces 5-cap, captures reason | `client/tests/lab-02/AttachmentSection.test.tsx` | Passed |
+| **E2E-01** | E2E | AC-01, AC-10 | Full Requester journey: Select user -> Create ticket -> View in My Tickets | Ticket created, unique number generated, listed in dashboard | `e2e/lab-02/requester-ticket-flow.spec.ts` | Passed |
+| **E2E-02** | E2E | AC-09, AC-10 | Multi-user isolation journey: Switch Requester A to B | Requester A tickets disappear when switching to Requester B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Passed |
+| **E2E-03** | E2E | AC-15, AC-17 | Attachment lifecycle journey: Add, download, soft-remove | File uploaded, downloaded, soft-removed with reason | `e2e/lab-02/requester-ticket-flow.spec.ts` | Passed |
 
 ---
 
@@ -69,13 +69,13 @@ Testing for Lab 2 follows a multi-layered verification strategy combining automa
 
 ## 4. Responsive & Visual Checklist
 
-* [ ] **Color Tokens**: Primary Green (`#006B3C`), Secondary Green (`#0B7A46`), Pale Green (`#EAF6EF`), Background (`#F5F7F6`).
-* [ ] **Form Styling**: White editable inputs with neutral borders; soft ivory read-only inputs in Ticket Detail.
-* [ ] **Validation Alignment**: Inline red text (`#C53030`) rendered directly below each corresponding input.
-* [ ] **Button Hierarchy**: Primary action has solid green fill with hover state; destructive actions styled with red border/text.
-* [ ] **Desktop Viewport (≥ 992px)**: Two-column forms, full data table in My Tickets, no horizontal scrollbar.
-* [ ] **Tablet Viewport (768–991px)**: Responsive container margins, data table maintains accessible touch scroll.
-* [ ] **Mobile Viewport (< 768px)**: Single-column vertical form stacking, My Tickets transforms into clean stacked cards.
+* [x] **Color Tokens**: Primary Green (`#006B3C`), Secondary Green (`#0B7A46`), Pale Green (`#EAF6EF`), Background (`#F5F7F6`).
+* [x] **Form Styling**: White editable inputs with neutral borders; soft ivory read-only inputs in Ticket Detail.
+* [x] **Validation Alignment**: Inline red text (`#C53030`) rendered directly below each corresponding input.
+* [x] **Button Hierarchy**: Primary action has solid green fill with hover state; destructive actions styled with red border/text.
+* [x] **Desktop Viewport (≥ 992px)**: Two-column forms, full data table in My Tickets, no horizontal scrollbar.
+* [x] **Tablet Viewport (768–991px)**: Responsive container margins, data table maintains accessible touch scroll.
+* [x] **Mobile Viewport (< 768px)**: Single-column vertical form stacking, My Tickets transforms into clean stacked cards.
 
 ---
 
@@ -83,14 +83,12 @@ Testing for Lab 2 follows a multi-layered verification strategy combining automa
 
 ### 5.1. Running Server API Tests
 ```bash
-cd server
-npm test -- tests/lab-02
+npm run test --prefix server
 ```
 
 ### 5.2. Running Client UI Tests
 ```bash
-cd client
-npm test -- tests/lab-02
+npm run test --prefix client
 ```
 
 ### 5.3. Running Playwright End-to-End Tests
@@ -101,10 +99,36 @@ npx playwright test e2e/lab-02
 ---
 
 ## 6. Final Results
-*(To be populated with test run output upon execution completion)*
+
+### Automated Regression Summary
+```
+✓ Server Integration Tests (Vitest + Supertest)
+  Test Files: 6 passed (6)
+  Tests:      25 passed (25)
+  Duration:   ~800ms
+
+✓ Client Component Tests (Vitest + React Testing Library)
+  Test Files: 5 passed (5)
+  Tests:      22 passed (22)
+  Duration:   ~1.3s
+
+✓ Playwright End-to-End & Screenshot Tests
+  Test Files: 2 passed (2)
+  Tests:      4 passed (4)
+  Duration:   ~8.2s
+
+Total Test Suite: 51 tests passed, 0 failed (100% green).
+```
+
+### Captured Visual Evidence (`artifacts/lab-02/screenshots/`)
+- `create-ticket/`: 6 screenshots (`01` through `06`)
+- `my-tickets/`: 7 screenshots (`01` through `07`)
+- `ticket-detail/`: 5 screenshots (`01` through `05`)
+Total: 18 responsive screenshots verified with zero clipping or overflow.
 
 ---
 
 ## 7. Known Limitations or Deferred Tests
 * Full authentication token tests, password reset flows, and role permission tests are deferred to Lab 3.
 * IT Staff ticket claiming, priority reassignment, and public/internal comment tests are deferred to Lab 3 and Lab 4.
+
