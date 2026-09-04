@@ -4,6 +4,7 @@ import AppHeader from "./components/AppHeader.js";
 import RequesterSelectorModal from "./components/RequesterSelectorModal.js";
 import CreateTicketForm from "./components/CreateTicketForm.js";
 import MyTicketsList from "./components/MyTicketsList.js";
+import RequesterTicketDetail from "./components/RequesterTicketDetail.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
@@ -88,6 +89,8 @@ function MainContent() {
       )}
 
       {activeTab === "create-ticket" && <CreateTicketForm />}
+
+      {activeTab === "ticket-detail" && <RequesterTicketDetail />}
     </div>
   );
 }
