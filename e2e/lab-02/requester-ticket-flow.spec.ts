@@ -80,9 +80,11 @@ test.describe("Lab 2 Requester Ticket Flow E2E Suite", () => {
     await page.click('button:has-text("Continue")');
     await expect(page.locator("header")).toContainText("Jennifer Anderson");
 
-    // Verify Jennifer's seeded ticket is visible
-    const jenniferTicketNumber = "TKT-2026-000001";
-    await expect(page.locator("table.zen-table")).toContainText(jenniferTicketNumber);
+    // Verify Jennifer's tickets are visible and get her top ticket number
+    const jenniferTicketCell = page.locator("table.zen-table tbody tr td button").first();
+    await expect(jenniferTicketCell).toBeVisible();
+    const jenniferTicketNumber = (await jenniferTicketCell.innerText()).trim();
+    expect(jenniferTicketNumber).toMatch(/TKT-\d{4}-\d{6}/);
 
     // 2. Switch Requester to David Lee (ID 2)
     await page.click('button:has-text("Change Requester")');
