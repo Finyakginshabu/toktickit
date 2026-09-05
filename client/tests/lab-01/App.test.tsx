@@ -1,13 +1,24 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import App from "../../src/App.js";
 import * as api from "../../src/api.js";
 
 describe("App", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "getRequesters").mockResolvedValue([
+      {
+        id: 1,
+        name: "Jennifer Anderson",
+        email: "jennifer.anderson@kmutt.ac.th",
+        department: "Computer Engineering",
+      },
+    ]);
+  });
+
   // WORKED EXAMPLE — provided for you.
-  it("renders the TokTickIT heading", () => {
+  it("renders the TokTickIT heading", async () => {
     render(<App />);
-    expect(screen.getByText(/TokTickIT/i)).toBeInTheDocument();
+    expect(await screen.findByText(/TokTickIT/i)).toBeInTheDocument();
   });
 
   it("shows Online and the seeded categories on success", async () => {
@@ -43,7 +54,7 @@ describe("App", () => {
 
     expect(await screen.findByText(/Offline/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Unable to connect to TokTickIT API/i)
+      screen.getAllByText(/Unable to connect to TokTickIT API/i)[0]
     ).toBeInTheDocument();
   });
 });

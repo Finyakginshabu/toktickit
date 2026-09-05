@@ -1,20 +1,15 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+import { RequesterUser, Category, RelatedSystem, Ticket, Attachment } from "./types/index.js";
 
-export interface Category {
-  id: number;
-  name: string;
-}
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
+export * from "./types/index.js";
+
+// Lab 1 System status check
 export interface SystemStatus {
   online: boolean;
   categories: Category[];
 }
 
-// Issue 2 + Issue 4 — call the backend.
-// Steps: fetch `${API_URL}/api/health`; if not ok, throw.
-//        then fetch `${API_URL}/api/categories`; if not ok, throw.
-//        return { online: true, categories }.
-// Throwing on failure lets the UI show a single Offline/error state.
 export async function checkSystem(): Promise<SystemStatus> {
   const healthRes = await fetch(`${API_URL}/api/health`).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -24,14 +19,184 @@ export async function checkSystem(): Promise<SystemStatus> {
     throw new Error(`Unable to connect to TokTickIT API (Status: ${healthRes.status})`);
   }
 
-  const catRes = await fetch(`${API_URL}/api/categories`).catch(() => {
+  const categories = await getCategories();
+  return { online: true, categories };
+}
+
+// Lab 2 Reference Data APIs
+export async function getCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_URL}/api/categories`).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
   });
 
-  if (!catRes.ok) {
-    throw new Error(`Unable to fetch categories (Status: ${catRes.status})`);
+  if (!res.ok) {
+    throw new Error(`Unable to fetch categories (Status: ${res.status})`);
   }
 
-  const categories: Category[] = await catRes.json();
-  return { online: true, categories };
+  return res.json();
+}
+
+export async function getRequesters(): Promise<RequesterUser[]> {
+  const res = await fetch(`${API_URL}/api/requesters`).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    throw new Error(`Unable to fetch development requesters (Status: ${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function getRelatedSystems(): Promise<RelatedSystem[]> {
+  const res = await fetch(`${API_URL}/api/related-systems`).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    throw new Error(`Unable to fetch related systems (Status: ${res.status})`);
+  }
+
+  return res.json();
+}
+
+// Lab 2 Ticket Creation API
+export async function createTicket(formData: FormData): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets`, {
+    method: "POST",
+    body: formData,
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Server returned status ${res.status}`;
+    const error = new Error(message);
+    (error as any).details = errorJson?.error?.details;
+    (error as any).code = errorJson?.error?.code;
+    throw error;
+  }
+
+  return res.json();
+}
+
+// Lab 2 Ticket Detail & Attachment Lifecycle APIs
+export async function getTicketDetail(ticketId: number, requesterId: number): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}?requesterId=${requesterId}`).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Server returned status ${res.status}`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function addAttachment(
+  ticketId: number,
+  requesterId: number,
+  file: File
+): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("requesterId", String(requesterId));
+
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    body: formData,
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Server returned status ${res.status}`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function softRemoveAttachment(
+  attachmentId: number,
+  requesterId: number,
+  reason: string
+): Promise<Attachment> {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/soft-remove`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ requesterId, reason }),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Server returned status ${res.status}`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export function getAttachmentDownloadUrl(attachmentId: number, requesterId: number): string {
+  return `${API_URL}/api/attachments/${attachmentId}/download?requesterId=${requesterId}`;
+}
+
+// Lab 2 My Tickets API
+export async function getTickets(params: import("./types/index.js").GetTicketsParams): Promise<import("./types/index.js").PaginatedTicketsResponse> {
+  const query = new URLSearchParams();
+  query.set("requesterId", String(params.requesterId));
+
+  if (params.search && params.search.trim()) {
+    query.set("search", params.search.trim());
+  }
+  if (params.categoryId) {
+    query.set("categoryId", String(params.categoryId));
+  }
+  if (params.priority) {
+    query.set("priority", params.priority);
+  }
+  if (params.status) {
+    query.set("status", params.status);
+  }
+  if (params.page) {
+    query.set("page", String(params.page));
+  }
+  if (params.pageSize) {
+    query.set("pageSize", String(params.pageSize));
+  }
+  if (params.sortBy) {
+    query.set("sortBy", params.sortBy);
+  }
+  if (params.sortOrder) {
+    query.set("sortOrder", params.sortOrder);
+  }
+
+  const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to fetch tickets (Status: ${res.status})`;
+    throw new Error(message);
+  }
+
+  return res.json();
 }
