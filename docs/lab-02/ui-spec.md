@@ -37,7 +37,6 @@ The TokTickIT user interface is built on the **Zen Green Theme**, designed to pr
 
 ### 1.3. Iconography Standards
 * **Icon Library**: **Google Material Symbols Outlined** (`.material-symbols-outlined`) loaded from Google Fonts.
-* **Prohibition on Emojis**: Raw system emojis (e.g. 📋, ➕, 👤, ℹ) are strictly prohibited across all screens to prevent cross-browser rendering inconsistencies and inaccessible contrasts.
 * **Standard Semantic Icons**:
   * Navigation Tabs: `assignment` (My Tickets), `add_circle` (Create Ticket)
   * Identity & Roles: `account_circle`, `person`
