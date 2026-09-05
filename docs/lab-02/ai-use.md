@@ -1,4 +1,4 @@
-# Lab 1 — AI Use and Reflection
+# Lab 2 — AI Use and Reflection
 
 **LLM/agent used:** Antigravity for coding agent with Gemini 3.8 Flash (Medium) as the LLM and Gemini (Chatbot) for general knowledge and guide my workflow to save token usage.
 
