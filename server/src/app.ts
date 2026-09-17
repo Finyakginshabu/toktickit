@@ -7,12 +7,18 @@ import { getPrisma } from "./prisma.js";
 import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadAttachments } from "./middleware/upload.js";
 import { Priority, TicketStatus } from "@prisma/client";
+import { authRouter } from "./routes/auth.js";
+import { staffRouter } from "./routes/staff.js";
+import { optionalAuthenticateToken, requirePasswordChangeResolved } from "./middleware/auth.js";
 
 export const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use("/api/auth", authRouter);
+app.use("/api/staff", staffRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1 — API health check
@@ -46,8 +52,12 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesters = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    const requesters = await prisma.user.findMany({
+      where: {
+        role: "REQUESTER",
+        isActive: true,
+        email: { endsWith: "@kmutt.ac.th" },
+      },
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -89,6 +99,8 @@ app.get("/api/related-systems", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.post(
   "/api/tickets",
+  optionalAuthenticateToken,
+  requirePasswordChangeResolved,
   (req: Request, res: Response, next: NextFunction) => {
     uploadAttachments.array("attachments", 5)(req, res, (err) => {
       if (err) {
@@ -148,13 +160,15 @@ app.post(
         requestedPriority = "MEDIUM",
       } = req.body;
 
+      const effectiveRequesterId = req.user ? req.user.id : (requesterId ? Number(requesterId) : undefined);
+
       const errors: { field: string; message: string }[] = [];
 
-      const parsedRequesterId = Number(requesterId);
+      const parsedRequesterId = Number(effectiveRequesterId);
       const parsedCategoryId = Number(categoryId);
       const parsedRelatedSystemId = Number(relatedSystemId);
 
-      if (!requesterId || isNaN(parsedRequesterId)) {
+      if (!effectiveRequesterId || isNaN(parsedRequesterId)) {
         errors.push({ field: "requesterId", message: "Valid requesterId is required." });
       }
       if (!categoryId || isNaN(parsedCategoryId)) {
@@ -202,8 +216,8 @@ app.post(
 
       const prisma = getPrisma();
 
-      // Verify active requester
-      const requester = await prisma.requesterUser.findUnique({
+      // Verify active user
+      const requester = await prisma.user.findUnique({
         where: { id: parsedRequesterId },
       });
       if (!requester || !requester.isActive) {
@@ -338,14 +352,16 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
-// Lab 2 — My Tickets List
-// GET /api/tickets (search, filters, sorting, pagination, ownership isolation)
+// Lab 2 & 3 — My Tickets List
+// GET /api/tickets / GET /api/tickets/my-tickets (search, filters, sorting, pagination, ownership isolation)
 // ---------------------------------------------------------------------------
-app.get("/api/tickets", async (req: Request, res: Response) => {
+const handleMyTickets = async (req: Request, res: Response) => {
   try {
     const { requesterId, search, categoryId, priority, status, page, pageSize, sortBy, sortOrder } = req.query;
 
-    if (!requesterId) {
+    const effectiveRequesterId = req.user ? req.user.id : (requesterId ? parseInt(requesterId as string, 10) : NaN);
+
+    if (isNaN(effectiveRequesterId) || effectiveRequesterId <= 0) {
       return res.status(400).json({
         error: {
           code: "BAD_REQUEST",
@@ -354,15 +370,7 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
       });
     }
 
-    const parsedRequesterId = parseInt(requesterId as string, 10);
-    if (isNaN(parsedRequesterId) || parsedRequesterId <= 0) {
-      return res.status(400).json({
-        error: {
-          code: "BAD_REQUEST",
-          message: "requesterId must be a valid positive integer.",
-        },
-      });
-    }
+    const parsedRequesterId = effectiveRequesterId;
 
     const prisma = getPrisma();
 
@@ -466,18 +474,30 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
       },
     });
   }
-});
+};
+
+app.get("/api/tickets", optionalAuthenticateToken, requirePasswordChangeResolved, handleMyTickets);
+app.get("/api/tickets/my-tickets", optionalAuthenticateToken, requirePasswordChangeResolved, handleMyTickets);
 
 // ---------------------------------------------------------------------------
-// Lab 2 — Ticket Detail
+// Lab 2 & 3 — Ticket Detail
 // GET /api/tickets/:id (full details, ownership check)
 // ---------------------------------------------------------------------------
-app.get("/api/tickets/:id", async (req: Request, res: Response) => {
+app.get("/api/tickets/:id", optionalAuthenticateToken, requirePasswordChangeResolved, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const requesterId = parseInt(req.query.requesterId as string, 10);
+    const requesterId = req.query.requesterId ? parseInt(req.query.requesterId as string, 10) : undefined;
 
-    if (isNaN(id) || isNaN(requesterId)) {
+    if (isNaN(id)) {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST",
+          message: "Valid ticket id is required.",
+        },
+      });
+    }
+
+    if (!req.user && (!requesterId || isNaN(requesterId))) {
       return res.status(400).json({
         error: {
           code: "BAD_REQUEST",
@@ -514,18 +534,29 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
       return res.status(404).json({
         error: {
           code: "NOT_FOUND",
-          message: "Ticket not found.",
+          message: "Ticket No.t found.",
         },
       });
     }
 
-    if (ticket.requesterId !== requesterId) {
-      return res.status(403).json({
-        error: {
-          code: "FORBIDDEN",
-          message: "Access denied. You do not own this ticket.",
-        },
-      });
+    if (req.user) {
+      if (req.user.role === "REQUESTER" && ticket.requesterId !== req.user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this ticket.",
+          },
+        });
+      }
+    } else {
+      if (ticket.requesterId !== requesterId) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this ticket.",
+          },
+        });
+      }
     }
 
     return res.status(200).json(ticket);
@@ -540,15 +571,24 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// Lab 2 — Attachment Metadata
+// Lab 2 & 3 — Attachment Metadata
 // GET /api/attachments/:id
 // ---------------------------------------------------------------------------
-app.get("/api/attachments/:id", async (req: Request, res: Response) => {
+app.get("/api/attachments/:id", optionalAuthenticateToken, requirePasswordChangeResolved, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const requesterId = parseInt(req.query.requesterId as string, 10);
+    const requesterId = req.query.requesterId ? parseInt(req.query.requesterId as string, 10) : undefined;
 
-    if (isNaN(id) || isNaN(requesterId)) {
+    if (isNaN(id)) {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST",
+          message: "Valid attachment id is required.",
+        },
+      });
+    }
+
+    if (!req.user && (!requesterId || isNaN(requesterId))) {
       return res.status(400).json({
         error: {
           code: "BAD_REQUEST",
@@ -574,13 +614,24 @@ app.get("/api/attachments/:id", async (req: Request, res: Response) => {
       });
     }
 
-    if (attachment.ticket.requesterId !== requesterId) {
-      return res.status(403).json({
-        error: {
-          code: "FORBIDDEN",
-          message: "Access denied. You do not own the ticket for this attachment.",
-        },
-      });
+    if (req.user) {
+      if (req.user.role === "REQUESTER" && attachment.ticket.requesterId !== req.user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own the ticket for this attachment.",
+          },
+        });
+      }
+    } else {
+      if (attachment.ticket.requesterId !== requesterId) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own the ticket for this attachment.",
+          },
+        });
+      }
     }
 
     const { ticket, ...meta } = attachment;
@@ -596,11 +647,13 @@ app.get("/api/attachments/:id", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// Lab 2 — Add Attachment to Existing Ticket
+// Lab 2 & 3 — Add Attachment to Existing Ticket
 // POST /api/tickets/:id/attachments (single file upload, 5 active cap)
 // ---------------------------------------------------------------------------
 app.post(
   "/api/tickets/:id/attachments",
+  optionalAuthenticateToken,
+  requirePasswordChangeResolved,
   (req: Request, res: Response, next: NextFunction) => {
     uploadAttachments.single("file")(req, res, (err) => {
       if (err) {
@@ -639,7 +692,7 @@ app.post(
       if (file && fs.existsSync(file.path)) {
         try {
           fs.unlinkSync(file.path);
-        } catch (_e) {}
+        } catch (_e) { }
       }
     };
 
@@ -654,9 +707,19 @@ app.post(
       }
 
       const ticketId = parseInt(req.params.id, 10);
-      const requesterId = parseInt(req.body.requesterId, 10);
+      const requesterId = req.body.requesterId ? parseInt(req.body.requesterId, 10) : undefined;
 
-      if (isNaN(ticketId) || isNaN(requesterId)) {
+      if (isNaN(ticketId)) {
+        cleanupSingleFile();
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      if (!req.user && (!requesterId || isNaN(requesterId))) {
         cleanupSingleFile();
         return res.status(400).json({
           error: {
@@ -676,19 +739,31 @@ app.post(
         return res.status(404).json({
           error: {
             code: "NOT_FOUND",
-            message: "Ticket not found.",
+            message: "Ticket No.t found.",
           },
         });
       }
 
-      if (ticket.requesterId !== requesterId) {
-        cleanupSingleFile();
-        return res.status(403).json({
-          error: {
-            code: "FORBIDDEN",
-            message: "Access denied. You do not own this ticket.",
-          },
-        });
+      if (req.user) {
+        if (req.user.role === "REQUESTER" && ticket.requesterId !== req.user.id) {
+          cleanupSingleFile();
+          return res.status(403).json({
+            error: {
+              code: "FORBIDDEN",
+              message: "Access denied. You do not own this ticket.",
+            },
+          });
+        }
+      } else {
+        if (ticket.requesterId !== requesterId) {
+          cleanupSingleFile();
+          return res.status(403).json({
+            error: {
+              code: "FORBIDDEN",
+              message: "Access denied. You do not own this ticket.",
+            },
+          });
+        }
       }
 
       // Check active attachment cap (BR-10, AC-16)
@@ -740,15 +815,24 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
-// Lab 2 — Attachment Download
+// Lab 2 & 3 — Attachment Download
 // GET /api/attachments/:id/download (streams active binary; 410 if soft-removed)
 // ---------------------------------------------------------------------------
-app.get("/api/attachments/:id/download", async (req: Request, res: Response) => {
+app.get("/api/attachments/:id/download", optionalAuthenticateToken, requirePasswordChangeResolved, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const requesterId = parseInt(req.query.requesterId as string, 10);
+    const requesterId = req.query.requesterId ? parseInt(req.query.requesterId as string, 10) : undefined;
 
-    if (isNaN(id) || isNaN(requesterId)) {
+    if (isNaN(id)) {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST",
+          message: "Valid attachment id is required.",
+        },
+      });
+    }
+
+    if (!req.user && (!requesterId || isNaN(requesterId))) {
       return res.status(400).json({
         error: {
           code: "BAD_REQUEST",
@@ -774,13 +858,24 @@ app.get("/api/attachments/:id/download", async (req: Request, res: Response) => 
       });
     }
 
-    if (attachment.ticket.requesterId !== requesterId) {
-      return res.status(403).json({
-        error: {
-          code: "FORBIDDEN",
-          message: "Access denied. You do not own this attachment.",
-        },
-      });
+    if (req.user) {
+      if (req.user.role === "REQUESTER" && attachment.ticket.requesterId !== req.user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this attachment.",
+          },
+        });
+      }
+    } else {
+      if (attachment.ticket.requesterId !== requesterId) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this attachment.",
+          },
+        });
+      }
     }
 
     // Block download of soft-removed files (BR-12, AC-18)
@@ -815,15 +910,24 @@ app.get("/api/attachments/:id/download", async (req: Request, res: Response) => 
 });
 
 // ---------------------------------------------------------------------------
-// Lab 2 — Attachment Soft Removal
+// Lab 2 & 3 — Attachment Soft Removal
 // PATCH /api/attachments/:id/soft-remove
 // ---------------------------------------------------------------------------
-app.patch("/api/attachments/:id/soft-remove", async (req: Request, res: Response) => {
+app.patch("/api/attachments/:id/soft-remove", optionalAuthenticateToken, requirePasswordChangeResolved, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     const { requesterId, reason } = req.body;
 
-    if (isNaN(id) || !requesterId || isNaN(parseInt(requesterId, 10))) {
+    if (isNaN(id)) {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST",
+          message: "Valid attachment id is required.",
+        },
+      });
+    }
+
+    if (!req.user && (!requesterId || isNaN(parseInt(requesterId, 10)))) {
       return res.status(400).json({
         error: {
           code: "BAD_REQUEST",
@@ -859,13 +963,24 @@ app.patch("/api/attachments/:id/soft-remove", async (req: Request, res: Response
       });
     }
 
-    if (attachment.ticket.requesterId !== parseInt(requesterId, 10)) {
-      return res.status(403).json({
-        error: {
-          code: "FORBIDDEN",
-          message: "Access denied. You do not own this attachment.",
-        },
-      });
+    if (req.user) {
+      if (req.user.role === "REQUESTER" && attachment.ticket.requesterId !== req.user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this attachment.",
+          },
+        });
+      }
+    } else {
+      if (attachment.ticket.requesterId !== parseInt(requesterId, 10)) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this attachment.",
+          },
+        });
+      }
     }
 
     if (attachment.isRemoved) {

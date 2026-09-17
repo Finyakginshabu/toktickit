@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import App from "../../src/App.js";
+import App, { SystemHealthWidget } from "../../src/App.js";
 import * as api from "../../src/api.js";
 
 describe("App", () => {
@@ -32,7 +32,7 @@ describe("App", () => {
       ],
     });
 
-    render(<App />);
+    render(<SystemHealthWidget />);
     const button = screen.getByRole("button", { name: /Check System/i });
     fireEvent.click(button);
 
@@ -48,7 +48,7 @@ describe("App", () => {
       new Error("Unable to connect to TokTickIT API")
     );
 
-    render(<App />);
+    render(<SystemHealthWidget />);
     const button = screen.getByRole("button", { name: /Check System/i });
     fireEvent.click(button);
 

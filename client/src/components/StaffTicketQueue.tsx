@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRequester } from "../context/RequesterContext.js";
-import { getTickets, getCategories, Category, Ticket, Priority, TicketStatus } from "../api.js";
+import { useAuth } from "../context/AuthContext.js";
+import {
+  getStaffTickets,
+  getCategories,
+  Category,
+  Ticket,
+  Priority,
+  TicketStatus,
+} from "../api.js";
 
-export default function MyTicketsList() {
-  const { requester, setActiveTab, setSelectedTicketId } = useRequester();
+export default function StaffTicketQueue() {
+  const { setActiveTab, setSelectedTicketId } = useRequester();
+  const { user: authUser } = useAuth();
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -13,8 +22,9 @@ export default function MyTicketsList() {
   // Filter & Search states
   const [search, setSearch] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
-  const [priority, setPriority] = useState<string>("");
+  const [itPriority, setItPriority] = useState<string>("");
   const [status, setStatus] = useState<string>("");
+  const [ownershipFilter, setOwnershipFilter] = useState<string>(""); // "" (All) | "me" | "unassigned"
 
   // Pagination states
   const [page, setPage] = useState<number>(1);
@@ -27,7 +37,7 @@ export default function MyTicketsList() {
   });
 
   // Sorting state
-  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortBy, setSortBy] = useState<"createdAt" | "itPriority" | "currentStatus" | "ticketNumber">("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Load category options on mount
@@ -43,24 +53,25 @@ export default function MyTicketsList() {
     loadCategories();
   }, []);
 
-  // Fetch tickets whenever requester, filters, page, or sort changes
+  // Fetch tickets whenever filters, page, or sort changes
   const fetchTickets = useCallback(async () => {
-    if (!requester) {
-      setTickets([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const res = await getTickets({
-        requesterId: requester.id,
+      let resolvedOwnerId: number | "unassigned" | undefined = undefined;
+      if (ownershipFilter === "unassigned") {
+        resolvedOwnerId = "unassigned";
+      } else if (ownershipFilter === "me" && authUser) {
+        resolvedOwnerId = authUser.id;
+      }
+
+      const res = await getStaffTickets({
         search: search.trim() || undefined,
         categoryId: categoryId ? parseInt(categoryId, 10) : undefined,
-        priority: priority ? (priority as Priority) : undefined,
+        itPriority: itPriority ? (itPriority as Priority) : undefined,
         status: status ? (status as TicketStatus) : undefined,
+        ownerId: resolvedOwnerId,
         page,
         pageSize,
         sortBy,
@@ -68,29 +79,37 @@ export default function MyTicketsList() {
       });
 
       setTickets(res.data);
-      setPagination(res.pagination);
+      setPagination({
+        page: res.pagination.page,
+        pageSize: res.pagination.pageSize,
+        total: res.pagination.total ?? 0,
+        totalPages: res.pagination.totalPages,
+      });
     } catch (err: any) {
-      setError(err.message || "Failed to load tickets.");
+      setError(err.message || "Failed to load ticket queue.");
     } finally {
       setLoading(false);
     }
-  }, [requester, search, categoryId, priority, status, page, sortBy, sortOrder]);
+  }, [search, categoryId, itPriority, status, ownershipFilter, authUser, page, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
-  const hasActiveFilters = Boolean(search.trim() || categoryId || priority || status);
+  const hasActiveFilters = Boolean(
+    search.trim() || categoryId || itPriority || status || ownershipFilter
+  );
 
   const handleClearFilters = () => {
     setSearch("");
     setCategoryId("");
-    setPriority("");
+    setItPriority("");
     setStatus("");
+    setOwnershipFilter("");
     setPage(1);
   };
 
-  const handleSort = (field: string) => {
+  const handleSort = (field: "createdAt" | "itPriority" | "currentStatus" | "ticketNumber") => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -98,6 +117,11 @@ export default function MyTicketsList() {
       setSortOrder("desc");
     }
     setPage(1);
+  };
+
+  const handleOpenDetail = (ticketId: number) => {
+    setSelectedTicketId(ticketId);
+    setActiveTab("ticket-detail");
   };
 
   const formatPriorityBadge = (p: Priority) => {
@@ -122,7 +146,7 @@ export default function MyTicketsList() {
       REOPENED: "badge-status-reopened",
       CANCELLED: "badge-status-cancelled",
     };
-    const label = s.replace("_", " ");
+    const label = s.replace(/_/g, " ");
     return <span className={`badge ${classMap[s] || "bg-secondary"}`}>{label}</span>;
   };
 
@@ -139,19 +163,14 @@ export default function MyTicketsList() {
     }
   };
 
-  if (!requester) {
-    return null;
-  }
-
   return (
     <div className="zen-card p-4">
       {/* Top Header */}
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 pb-2 border-bottom">
         <div>
-          <h1 className="h4 fw-bold mb-1">My Tickets</h1>
+          <h1 className="h4 fw-bold mb-1">IT Staff Ticket Queue</h1>
           <p className="text-muted small mb-0">
-            Viewing support requests for{" "}
-            <strong className="text-dark">{requester?.name ?? "Guest"}</strong>
+            Manage, triage, and reassign tickets across all university requesters.
           </p>
         </div>
         <button
@@ -160,7 +179,7 @@ export default function MyTicketsList() {
           onClick={() => setActiveTab("create-ticket")}
         >
           <span className="material-symbols-outlined fs-5">add_circle</span>
-          New Ticket
+          Create Ticket
         </button>
       </div>
 
@@ -168,7 +187,7 @@ export default function MyTicketsList() {
       <div className="bg-light p-3 rounded mb-4 border">
         <div className="row g-2 align-items-center">
           {/* Search Box */}
-          <div className="col-12 col-md-4">
+          <div className="col-12 col-md-3">
             <div className="input-group">
               <span className="input-group-text bg-white border-end-0">
                 <span className="material-symbols-outlined text-muted fs-5">search</span>
@@ -176,7 +195,7 @@ export default function MyTicketsList() {
               <input
                 type="text"
                 className="form-control border-start-0"
-                placeholder="Search by ticket number or summary..."
+                placeholder="Search Ticket No. or summary..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -207,25 +226,6 @@ export default function MyTicketsList() {
             </select>
           </div>
 
-          {/* Priority Filter */}
-          <div className="col-6 col-md-2">
-            <select
-              className="form-select"
-              value={priority}
-              onChange={(e) => {
-                setPriority(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Filter by Priority"
-            >
-              <option value="">All Priorities</option>
-              <option value="LOW">LOW</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="HIGH">HIGH</option>
-              <option value="URGENT">URGENT</option>
-            </select>
-          </div>
-
           {/* Status Filter */}
           <div className="col-6 col-md-2">
             <select
@@ -239,34 +239,74 @@ export default function MyTicketsList() {
             >
               <option value="">All Statuses</option>
               <option value="NEW">NEW</option>
+              <option value="OPEN">OPEN</option>
               <option value="IN_PROGRESS">IN PROGRESS</option>
-              <option value="PENDING">PENDING</option>
+              <option value="WAITING_FOR_REQUESTER">WAITING FOR REQUESTER</option>
               <option value="RESOLVED">RESOLVED</option>
               <option value="CLOSED">CLOSED</option>
+              <option value="REOPENED">REOPENED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+          </div>
+
+          {/* IT Priority Filter */}
+          <div className="col-6 col-md-2">
+            <select
+              className="form-select"
+              value={itPriority}
+              onChange={(e) => {
+                setItPriority(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by IT Priority"
+            >
+              <option value="">All Priorities</option>
+              <option value="LOW">LOW</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="HIGH">HIGH</option>
+              <option value="URGENT">URGENT</option>
+            </select>
+          </div>
+
+          {/* Ownership Filter */}
+          <div className="col-6 col-md-2">
+            <select
+              className="form-select"
+              value={ownershipFilter}
+              onChange={(e) => {
+                setOwnershipFilter(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by Ownership"
+            >
+              <option value="">All Tickets</option>
+              <option value="me">Assigned to Me</option>
+              <option value="unassigned">Unassigned</option>
             </select>
           </div>
 
           {/* Clear Filters Action */}
-          <div className="col-6 col-md-2 text-end">
-            {hasActiveFilters && (
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
-                onClick={handleClearFilters}
-              >
-                <span className="material-symbols-outlined fs-6">filter_alt_off</span>
-                Clear Filters
-              </button>
-            )}
+          <div className="col-12 col-md-1 text-md-end text-center mt-2 mt-md-0">
+            <button
+              type="button"
+              className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
+              onClick={handleClearFilters}
+              disabled={!hasActiveFilters}
+              title="Clear all active search and filter constraints"
+              aria-label="Clear Filters"
+            >
+              <span className="material-symbols-outlined fs-6">filter_alt_off</span>
+              <span className="d-md-none">Clear</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Error Notice */}
-      {error ? (
+      {/* Error Alert */}
+      {error && (
         <div className="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
           <span className="material-symbols-outlined fs-5">error</span>
-          <div>{error}</div>
+          <span>{error}</span>
           <button
             type="button"
             className="btn btn-sm btn-outline-danger ms-auto"
@@ -275,52 +315,52 @@ export default function MyTicketsList() {
             Retry
           </button>
         </div>
-      ) : loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-success mb-2" role="status" />
-          <div className="text-muted small">Loading tickets…</div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-5 text-muted">
+          <div className="spinner-border text-success mb-2" role="status" aria-label="Loading tickets">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="small mb-0">Loading ticket queue...</p>
         </div>
-      ) : tickets.length === 0 ? (
-        /* Empty / No-Results States */
-        hasActiveFilters ? (
-          <div className="text-center py-5">
-            <span className="material-symbols-outlined fs-1 text-muted mb-2">search_off</span>
-            <h2 className="h5 fw-bold text-muted mb-1">No matching tickets found</h2>
-            <p className="text-muted small mb-3">
-              No tickets matched your current search and filter criteria.
-            </p>
-            <button
-              type="button"
-              className="btn btn-sm btn-zen-secondary"
-              onClick={handleClearFilters}
-            >
-              Clear Filters
-            </button>
-          </div>
-        ) : (
-          <div className="text-center py-5">
-            <span className="material-symbols-outlined fs-1 text-success mb-2">confirmation_number</span>
-            <h2 className="h5 fw-bold text-success mb-1">You haven't submitted any tickets yet</h2>
-            <p className="text-muted small mb-3">
-              Need technical assistance? Submit a request and our IT support desk will resolve it.
-            </p>
-            <button
-              type="button"
-              className="btn btn-zen-primary"
-              onClick={() => setActiveTab("create-ticket")}
-            >
-              Create Ticket
-            </button>
-          </div>
-        )
-      ) : (
+      )}
+
+      {/* Empty State: Zero tickets in the entire queue */}
+      {!loading && !error && tickets.length === 0 && !hasActiveFilters && (
+        <div className="text-center py-5 text-muted">
+          <span className="material-symbols-outlined fs-1 text-muted mb-2">inbox</span>
+          <h2 className="h5 fw-semibold mb-1">No tickets in queue</h2>
+          <p className="small mb-0">There are currently no tickets submitted across the organization.</p>
+        </div>
+      )}
+
+      {/* No Results State: Active filters match zero tickets */}
+      {!loading && !error && tickets.length === 0 && hasActiveFilters && (
+        <div className="text-center py-5 text-muted">
+          <span className="material-symbols-outlined fs-1 text-muted mb-2">filter_list_off</span>
+          <h2 className="h5 fw-semibold mb-1">No tickets match your filter criteria</h2>
+          <p className="small mb-3">Try modifying or clearing your search term, status, priority, or ownership filter.</p>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            onClick={handleClearFilters}
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
+
+      {/* Tickets Presentation */}
+      {!loading && !error && tickets.length > 0 && (
         <>
           {/* Desktop Table View (>= 768px) */}
           <div className="table-responsive d-none d-md-block mb-3">
-            <table className="table table-hover zen-table align-middle">
+            <table className="table table-hover align-middle mb-0 zen-table">
               <thead className="table-light">
                 <tr>
-                  <th scope="col" onClick={() => handleSort("ticketNumber")}>
+                  <th scope="col" onClick={() => handleSort("ticketNumber")} style={{ cursor: "pointer" }}>
                     <div className="d-flex align-items-center gap-1">
                       Ticket No.
                       {sortBy === "ticketNumber" && (
@@ -330,7 +370,7 @@ export default function MyTicketsList() {
                       )}
                     </div>
                   </th>
-                  <th scope="col" onClick={() => handleSort("createdAt")}>
+                  <th scope="col" onClick={() => handleSort("createdAt")} style={{ cursor: "pointer" }}>
                     <div className="d-flex align-items-center gap-1">
                       Created
                       {sortBy === "createdAt" && (
@@ -342,18 +382,18 @@ export default function MyTicketsList() {
                   </th>
                   <th scope="col">Summary</th>
                   <th scope="col">Category</th>
-                  <th scope="col" onClick={() => handleSort("requestedPriority")}>
+                  <th scope="col">Priority</th>
+                  <th scope="col" onClick={() => handleSort("itPriority")} style={{ cursor: "pointer" }}>
                     <div className="d-flex align-items-center gap-1">
-                      Priority
-                      {sortBy === "requestedPriority" && (
+                      IT Priority
+                      {sortBy === "itPriority" && (
                         <span className="material-symbols-outlined fs-6">
                           {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
                         </span>
                       )}
                     </div>
                   </th>
-                  <th scope="col">IT Priority</th>
-                  <th scope="col" onClick={() => handleSort("currentStatus")}>
+                  <th scope="col" onClick={() => handleSort("currentStatus")} style={{ cursor: "pointer" }}>
                     <div className="d-flex align-items-center gap-1">
                       Status
                       {sortBy === "currentStatus" && (
@@ -363,24 +403,21 @@ export default function MyTicketsList() {
                       )}
                     </div>
                   </th>
-                  <th scope="col" className="text-center">Files</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col" className="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {tickets.map((t) => (
                   <tr
                     key={t.id}
-                    onClick={() => {
-                      setSelectedTicketId(t.id);
-                      setActiveTab("ticket-detail");
-                    }}
+                    onClick={() => handleOpenDetail(t.id)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setSelectedTicketId(t.id);
-                        setActiveTab("ticket-detail");
+                        handleOpenDetail(t.id);
                       }
                     }}
                   >
@@ -390,15 +427,14 @@ export default function MyTicketsList() {
                         className="btn btn-link p-0 text-decoration-none fw-semibold text-success"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedTicketId(t.id);
-                          setActiveTab("ticket-detail");
+                          handleOpenDetail(t.id);
                         }}
                       >
                         {t.ticketNumber}
                       </button>
                     </td>
                     <td className="text-muted small">{formatDate(t.createdAt)}</td>
-                    <td className="fw-medium text-truncate" style={{ maxWidth: 280 }} title={t.summary}>
+                    <td className="fw-medium text-truncate" style={{ maxWidth: 260 }} title={t.summary}>
                       {t.summary}
                     </td>
                     <td>
@@ -409,15 +445,26 @@ export default function MyTicketsList() {
                     <td>{formatPriorityBadge(t.requestedPriority)}</td>
                     <td>{formatPriorityBadge(t.itPriority)}</td>
                     <td>{formatStatusBadge(t.currentStatus)}</td>
-                    <td className="text-center">
-                      {(t.attachmentCount ?? 0) > 0 ? (
-                        <span className="badge bg-light text-muted border d-inline-flex align-items-center gap-1">
-                          <span className="material-symbols-outlined fs-6">attach_file</span>
-                          {t.attachmentCount}
+                    <td>
+                      {t.ticketOwner ? (
+                        <span className="badge bg-light text-dark border">
+                          {t.ticketOwner.name}
                         </span>
                       ) : (
-                        <span className="text-muted small">—</span>
+                        <span className="text-muted small fst-italic">Unassigned</span>
                       )}
+                    </td>
+                    <td className="text-end">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDetail(t.id);
+                        }}
+                      >
+                        Open Detail
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -425,23 +472,19 @@ export default function MyTicketsList() {
             </table>
           </div>
 
-          {/* Mobile Stacked Cards (< 768px) */}
-          <div className="d-flex flex-column gap-3 d-md-none mb-4">
+          {/* Mobile Card View (< 768px) */}
+          <div className="d-md-none d-flex flex-column gap-3 mb-3">
             {tickets.map((t) => (
               <div
                 key={t.id}
                 className="zen-ticket-card"
+                onClick={() => handleOpenDetail(t.id)}
                 role="button"
                 tabIndex={0}
-                onClick={() => {
-                  setSelectedTicketId(t.id);
-                  setActiveTab("ticket-detail");
-                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    setSelectedTicketId(t.id);
-                    setActiveTab("ticket-detail");
+                    handleOpenDetail(t.id);
                   }
                 }}
               >
@@ -454,15 +497,15 @@ export default function MyTicketsList() {
                   <span className="badge bg-light text-dark border small">
                     {t.category?.name || "General"}
                   </span>
-                  {formatPriorityBadge(t.requestedPriority)}
-                  {(t.attachmentCount ?? 0) > 0 && (
-                    <span className="badge bg-light text-muted border small d-flex align-items-center gap-1">
-                      <span className="material-symbols-outlined fs-6">attach_file</span>
-                      {t.attachmentCount}
-                    </span>
-                  )}
+                  {formatPriorityBadge(t.itPriority)}
+                  <span className="badge bg-light text-muted border small">
+                    {t.ticketOwner ? t.ticketOwner.name : "Unassigned"}
+                  </span>
                 </div>
-                <div className="text-muted small">{formatDate(t.createdAt)}</div>
+                <div className="d-flex justify-content-between align-items-center text-muted small pt-1 border-top">
+                  <span>{formatDate(t.createdAt)}</span>
+                  <span className="text-success fw-medium">Open Detail &rarr;</span>
+                </div>
               </div>
             ))}
           </div>
