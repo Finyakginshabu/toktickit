@@ -87,18 +87,18 @@ export default function AppHeader() {
             <>
               <button
                 type="button"
-                className={`btn btn-sm ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
                 onClick={() => handleNavClick("my-tickets")}
               >
-                <span className="material-symbols-outlined fs-6 me-1">assignment</span>
+                <span className="material-symbols-outlined fs-6">assignment</span>
                 My Tickets
               </button>
               <button
                 type="button"
-                className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
                 onClick={() => handleNavClick("create-ticket")}
               >
-                <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
+                <span className="material-symbols-outlined fs-6">add_circle</span>
                 Create Ticket
               </button>
             </>
@@ -108,19 +108,11 @@ export default function AppHeader() {
             <>
               <button
                 type="button"
-                className={`btn btn-sm ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
                 onClick={() => handleNavClick("ticket-queue")}
               >
-                <span className="material-symbols-outlined fs-6 me-1">confirmation_number</span>
+                <span className="material-symbols-outlined fs-6">confirmation_number</span>
                 Ticket Queue
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
-                onClick={() => handleNavClick("create-ticket")}
-              >
-                <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
-                Create Ticket
               </button>
             </>
           )}
@@ -128,10 +120,10 @@ export default function AppHeader() {
           {authUser?.role === "ADMINISTRATOR" && (
             <button
               type="button"
-              className={`btn btn-sm ${activeTab === "user-management" ? "zen-nav-link active" : "zen-nav-link"}`}
+              className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "user-management" ? "zen-nav-link active" : "zen-nav-link"}`}
               onClick={() => handleNavClick("user-management")}
             >
-              <span className="material-symbols-outlined fs-6 me-1">manage_accounts</span>
+              <span className="material-symbols-outlined fs-6">manage_accounts</span>
               User Management
             </button>
           )}
@@ -185,18 +177,18 @@ export default function AppHeader() {
               <>
                 <button
                   type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "my-tickets" ? "active" : ""}`}
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "my-tickets" ? "active" : ""}`}
                   onClick={() => handleNavClick("my-tickets")}
                 >
-                  <span className="material-symbols-outlined me-2">assignment</span>
+                  <span className="material-symbols-outlined">assignment</span>
                   My Tickets
                 </button>
                 <button
                   type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "create-ticket" ? "active" : ""}`}
                   onClick={() => handleNavClick("create-ticket")}
                 >
-                  <span className="material-symbols-outlined me-2">add_circle</span>
+                  <span className="material-symbols-outlined">add_circle</span>
                   Create Ticket
                 </button>
               </>
@@ -206,19 +198,11 @@ export default function AppHeader() {
               <>
                 <button
                   type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "ticket-queue" ? "active" : ""}`}
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "ticket-queue" ? "active" : ""}`}
                   onClick={() => handleNavClick("ticket-queue")}
                 >
-                  <span className="material-symbols-outlined me-2">confirmation_number</span>
+                  <span className="material-symbols-outlined">confirmation_number</span>
                   Ticket Queue
-                </button>
-                <button
-                  type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
-                  onClick={() => handleNavClick("create-ticket")}
-                >
-                  <span className="material-symbols-outlined me-2">add_circle</span>
-                  Create Ticket
                 </button>
               </>
             )}
@@ -226,10 +210,10 @@ export default function AppHeader() {
             {authUser?.role === "ADMINISTRATOR" && (
               <button
                 type="button"
-                className={`zen-mobile-nav-link ${activeTab === "user-management" ? "active" : ""}`}
+                className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "user-management" ? "active" : ""}`}
                 onClick={() => handleNavClick("user-management")}
               >
-                <span className="material-symbols-outlined me-2">manage_accounts</span>
+                <span className="material-symbols-outlined">manage_accounts</span>
                 User Management
               </button>
             )}

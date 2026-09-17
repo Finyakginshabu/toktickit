@@ -21,19 +21,23 @@ const AUTH_PATHS: Record<string, AppTab> = {
 
 /** Derive AppTab from the current browser path. Returns null for /login, /change-password, and unknown paths. */
 function pathToTab(pathname: string): AppTab | null {
-  if (pathname.startsWith("/tickets/")) return "ticket-detail";
+  if (pathname.startsWith("/tickets/") || pathname.startsWith("/staff/tickets/")) return "ticket-detail";
   return AUTH_PATHS[pathname] ?? null;
 }
 
 /** Push a new history entry only when the path actually changes. */
-function syncUrl(tab: AppTab, ticketId?: number | null) {
+function syncUrl(tab: AppTab, ticketId?: number | null, userRole?: string) {
   const isTest =
     (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") ||
     (typeof process !== "undefined" && process?.env?.NODE_ENV === "test");
   if (isTest) return; // don't touch window.location in tests
 
   let path = TAB_TO_PATH[tab];
-  if (tab === "ticket-detail" && ticketId) path = `/tickets/${ticketId}`;
+  if (tab === "ticket-detail" && ticketId) {
+    path = (userRole === "IT_STAFF" || userRole === "ADMINISTRATOR")
+      ? `/staff/tickets/${ticketId}`
+      : `/tickets/${ticketId}`;
+  }
 
   if (window.location.pathname !== path) {
     window.history.pushState({ tab, ticketId: ticketId ?? null }, "", path);
@@ -89,9 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return "my-tickets";
   });
   const [selectedTicketId, setSelectedTicketIdRaw] = useState<number | null>(() => {
-    // Restore ticket id from path like /tickets/42
+    // Restore ticket id from path like /tickets/42 or /staff/tickets/42
     if (typeof window !== "undefined") {
-      const m = window.location.pathname.match(/^\/tickets\/(\d+)$/);
+      const m = window.location.pathname.match(/^\/(?:staff\/)?tickets\/(\d+)$/);
       if (m) return Number(m[1]);
     }
     return null;
@@ -100,13 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Wrapped setters that keep URL in sync
   const setActiveTab = useCallback((tab: AppTab) => {
     setActiveTabRaw(tab);
-    syncUrl(tab);
-  }, []);
+    syncUrl(tab, undefined, user?.role);
+  }, [user?.role]);
 
   const setSelectedTicketId = useCallback((id: number | null) => {
     setSelectedTicketIdRaw(id);
-    if (id !== null) syncUrl("ticket-detail", id);
-  }, []);
+    if (id !== null) syncUrl("ticket-detail", id, user?.role);
+  }, [user?.role]);
 
   // Handle browser back / forward
   useEffect(() => {
@@ -119,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fallback: derive from current path
         const tab = pathToTab(window.location.pathname);
         if (tab) setActiveTabRaw(tab);
-        const m = window.location.pathname.match(/^\/tickets\/(\d+)$/);
+        const m = window.location.pathname.match(/^\/(?:staff\/)?tickets\/(\d+)$/);
         setSelectedTicketIdRaw(m ? Number(m[1]) : null);
       }
     }

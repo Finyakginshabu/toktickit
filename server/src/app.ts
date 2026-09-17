@@ -9,7 +9,13 @@ import { uploadAttachments } from "./middleware/upload.js";
 import { Priority, TicketStatus } from "@prisma/client";
 import { authRouter } from "./routes/auth.js";
 import { staffRouter } from "./routes/staff.js";
-import { optionalAuthenticateToken, requirePasswordChangeResolved } from "./middleware/auth.js";
+import {
+  authenticateToken,
+  optionalAuthenticateToken,
+  requirePasswordChangeResolved,
+  requireRole,
+} from "./middleware/auth.js";
+import { isValidStatusTransition } from "./utils/statusTransitions.js";
 
 export const app = express();
 
@@ -102,6 +108,15 @@ app.post(
   optionalAuthenticateToken,
   requirePasswordChangeResolved,
   (req: Request, res: Response, next: NextFunction) => {
+    if (req.user && req.user.role !== "REQUESTER") {
+      return res.status(403).json({
+        error: {
+          code: "FORBIDDEN",
+          message: "IT Staff and Administrators are not permitted to create tickets.",
+        },
+      });
+    }
+
     uploadAttachments.array("attachments", 5)(req, res, (err) => {
       if (err) {
         if (err instanceof multer.MulterError) {
@@ -160,16 +175,18 @@ app.post(
         requestedPriority = "MEDIUM",
       } = req.body;
 
-      const effectiveRequesterId = req.user ? req.user.id : (requesterId ? Number(requesterId) : undefined);
+      // In Lab 3, derived from authenticated session/token (BR-03).
+      // Fallback to body.requesterId for backward compatibility with Lab 2 tests if unauthenticated.
+      const effectiveRequesterId = req.user ? req.user.id : (requesterId ? parseInt(requesterId, 10) : undefined);
 
       const errors: { field: string; message: string }[] = [];
 
-      const parsedRequesterId = Number(effectiveRequesterId);
+      const parsedRequesterId = effectiveRequesterId ? Number(effectiveRequesterId) : NaN;
       const parsedCategoryId = Number(categoryId);
       const parsedRelatedSystemId = Number(relatedSystemId);
 
       if (!effectiveRequesterId || isNaN(parsedRequesterId)) {
-        errors.push({ field: "requesterId", message: "Valid requesterId is required." });
+        errors.push({ field: "requesterId", message: "Requester selection is required." });
       }
       if (!categoryId || isNaN(parsedCategoryId)) {
         errors.push({ field: "categoryId", message: "Category selection is required." });
@@ -511,6 +528,7 @@ app.get("/api/tickets/:id", optionalAuthenticateToken, requirePasswordChangeReso
       where: { id },
       include: {
         requester: { select: { id: true, name: true, email: true, department: true } },
+        ticketOwner: { select: { id: true, name: true, email: true, role: true } },
         category: { select: { id: true, name: true } },
         relatedSystem: { select: { id: true, name: true } },
         attachments: {
@@ -569,6 +587,601 @@ app.get("/api/tickets/:id", optionalAuthenticateToken, requirePasswordChangeReso
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Ticket Ownership Assignment / Claiming
+// PATCH /api/tickets/:id/assignment (claim or assign to active IT_STAFF / ADMIN)
+// Restricted strictly to IT_STAFF and ADMINISTRATOR (FR-10, BR-13, AC-11, AC-12)
+// ---------------------------------------------------------------------------
+app.patch(
+  "/api/tickets/:id/assignment",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { ownerId } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const parsedOwnerId = parseInt(ownerId, 10);
+      if (isNaN(parsedOwnerId)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ownerId is required.",
+          },
+        });
+      }
+
+      const prisma = getPrisma();
+
+      // Verify owner is an active user with role IT_STAFF or ADMINISTRATOR (BR-13)
+      const targetUser = await prisma.user.findUnique({
+        where: { id: parsedOwnerId },
+      });
+
+      if (!targetUser || !targetUser.isActive || (targetUser.role !== "IT_STAFF" && targetUser.role !== "ADMINISTRATOR")) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Ticket owner must be an active IT Staff or Administrator.",
+          },
+        });
+      }
+
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      // AC-11: status transitions to OPEN if currently NEW
+      const newStatus = ticket.currentStatus === TicketStatus.NEW ? TicketStatus.OPEN : ticket.currentStatus;
+
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: {
+          ticketOwnerId: parsedOwnerId,
+          currentStatus: newStatus,
+        },
+      });
+
+      return res.status(200).json({
+        id: updated.id,
+        ticketOwnerId: updated.ticketOwnerId,
+        currentStatus: updated.currentStatus,
+      });
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to assign ticket owner.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Update IT Priority Independently
+// PATCH /api/tickets/:id/priority (updates itPriority without modifying requestedPriority)
+// Restricted strictly to IT_STAFF and ADMINISTRATOR (FR-11, BR-12, AC-13)
+// ---------------------------------------------------------------------------
+app.patch(
+  "/api/tickets/:id/priority",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { itPriority } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const validPriorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+      const upperPriority = typeof itPriority === "string" ? itPriority.toUpperCase() : "";
+      if (!validPriorities.includes(upperPriority)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Priority must be one of LOW, MEDIUM, HIGH, URGENT.",
+          },
+        });
+      }
+
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: {
+          itPriority: upperPriority as Priority,
+        },
+      });
+
+      return res.status(200).json({
+        id: updated.id,
+        itPriority: updated.itPriority,
+        requestedPriority: updated.requestedPriority,
+      });
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to update IT Priority.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Transition Ticket Status Workflow
+// PATCH /api/tickets/:id/status (enforces 8-status transition matrix per BR-14)
+// Restricted strictly to IT_STAFF and ADMINISTRATOR (FR-12, BR-14, AC-14, AC-15)
+// ---------------------------------------------------------------------------
+app.patch(
+  "/api/tickets/:id/status",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { status, resolutionSummary } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const upperStatus = typeof status === "string" ? status.toUpperCase() : "";
+      if (!Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Invalid ticket status.",
+          },
+        });
+      }
+
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      // Enforce status transition matrix (BR-14, AC-14, AC-15)
+      if (!isValidStatusTransition(ticket.currentStatus, upperStatus as TicketStatus)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: `Invalid status transition from ${ticket.currentStatus} to ${upperStatus}.`,
+          },
+        });
+      }
+
+      const updateData: any = {
+        currentStatus: upperStatus as TicketStatus,
+      };
+
+      if (upperStatus === TicketStatus.RESOLVED && resolutionSummary !== undefined) {
+        updateData.resolutionSummary = typeof resolutionSummary === "string" ? resolutionSummary.trim() : null;
+      }
+
+      const updated = await prisma.ticket.update({
+        where: { id },
+        data: updateData,
+      });
+
+      return res.status(200).json({
+        id: updated.id,
+        currentStatus: updated.currentStatus,
+        resolutionSummary: updated.resolutionSummary,
+      });
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to update ticket status.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Requester Resolution Indication
+// POST /api/tickets/:id/indicate-resolved
+// Restricted strictly to the authenticated Ticket Owner (Requester) (FR-07, BR-05, AC-09)
+// ---------------------------------------------------------------------------
+app.post(
+  "/api/tickets/:id/indicate-resolved",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const user = req.user!;
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      // Strictly restricted to Ticket Owner (Requester) (BR-05, AC-09, Auth Matrix)
+      if (user.role !== "REQUESTER" || ticket.requesterId !== user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Only the ticket requester can indicate problem resolution.",
+          },
+        });
+      }
+
+      // Atomic transaction: update flag + timestamp and create audit comment
+      const updated = await prisma.$transaction(async (tx) => {
+        const t = await tx.ticket.update({
+          where: { id },
+          data: {
+            problemAppearsResolved: true,
+            problemAppearsResolvedAt: new Date(),
+          },
+        });
+
+        await tx.publicComment.create({
+          data: {
+            ticketId: id,
+            authorId: user.id,
+            content: "Requester indicated that the problem appears resolved.",
+          },
+        });
+
+        return t;
+      });
+
+      return res.status(200).json({
+        id: updated.id,
+        problemAppearsResolved: updated.problemAppearsResolved,
+        problemAppearsResolvedAt: updated.problemAppearsResolvedAt,
+      });
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to record requester resolution indication.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Public Comments Stream
+// GET /api/tickets/:id/comments & POST /api/tickets/:id/comments
+// Requesters (owned ticket only), IT_STAFF and ADMINISTRATOR (any ticket) (FR-13, BR-04, BR-15, AC-16)
+// ---------------------------------------------------------------------------
+app.get(
+  "/api/tickets/:id/comments",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const user = req.user!;
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      if (user.role === "REQUESTER" && ticket.requesterId !== user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this ticket.",
+          },
+        });
+      }
+
+      const comments = await prisma.publicComment.findMany({
+        where: { ticketId: id },
+        orderBy: { createdAt: "asc" },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json(comments);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to retrieve public comments.",
+        },
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/tickets/:id/comments",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { content } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const user = req.user!;
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      if (user.role === "REQUESTER" && ticket.requesterId !== user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Access denied. You do not own this ticket.",
+          },
+        });
+      }
+
+      const trimmedContent = typeof content === "string" ? content.trim() : "";
+      if (!trimmedContent || trimmedContent.length < 1 || trimmedContent.length > 2000) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Comment content must be between 1 and 2000 characters.",
+          },
+        });
+      }
+
+      const comment = await prisma.publicComment.create({
+        data: {
+          ticketId: id,
+          authorId: user.id,
+          content: trimmedContent,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      return res.status(201).json(comment);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to create public comment.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Internal Notes Stream
+// GET /api/tickets/:id/notes & POST /api/tickets/:id/notes
+// Restricted strictly to IT_STAFF and ADMINISTRATOR (Requesters receive 403 Forbidden) (FR-14, BR-04, BR-15, BR-16, AC-17)
+// ---------------------------------------------------------------------------
+app.get(
+  "/api/tickets/:id/notes",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      const notes = await prisma.internalNote.findMany({
+        where: { ticketId: id },
+        orderBy: { createdAt: "asc" },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json(notes);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to retrieve internal notes.",
+        },
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/tickets/:id/notes",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { content } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const user = req.user!;
+      const prisma = getPrisma();
+      const ticket = await prisma.ticket.findUnique({ where: { id } });
+      if (!ticket) {
+        return res.status(404).json({
+          error: {
+            code: "NOT_FOUND",
+            message: "Ticket not found.",
+          },
+        });
+      }
+
+      const trimmedContent = typeof content === "string" ? content.trim() : "";
+      if (!trimmedContent || trimmedContent.length < 1 || trimmedContent.length > 2000) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Note content must be between 1 and 2000 characters.",
+          },
+        });
+      }
+
+      const note = await prisma.internalNote.create({
+        data: {
+          ticketId: id,
+          authorId: user.id,
+          content: trimmedContent,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      return res.status(201).json(note);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to create internal note.",
+        },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Lab 2 & 3 — Attachment Metadata

@@ -5,6 +5,7 @@ import AppHeader from "./components/AppHeader.js";
 import CreateTicketForm from "./components/CreateTicketForm.js";
 import MyTicketsList from "./components/MyTicketsList.js";
 import RequesterTicketDetail from "./components/RequesterTicketDetail.js";
+import StaffTicketDetail from "./components/StaffTicketDetail.js";
 import StaffTicketQueue from "./components/StaffTicketQueue.js";
 import { Login } from "./components/Login.js";
 import { ChangePassword } from "./components/ChangePassword.js";
@@ -81,6 +82,7 @@ export function SystemHealthWidget() {
 
 function MainContent() {
   const { activeTab } = useRequester();
+  const { user } = useAuth();
 
   return (
     <div className="container py-4">
@@ -90,7 +92,13 @@ function MainContent() {
 
       {activeTab === "create-ticket" && <CreateTicketForm />}
 
-      {activeTab === "ticket-detail" && <RequesterTicketDetail />}
+      {activeTab === "ticket-detail" && (
+        user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR" ? (
+          <StaffTicketDetail />
+        ) : (
+          <RequesterTicketDetail />
+        )
+      )}
 
       {activeTab === "user-management" && (
         <div className="zen-card p-4 text-center py-5">

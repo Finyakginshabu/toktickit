@@ -128,4 +128,55 @@ describe("Lab 3 Authorization & Ownership API Suite (server/tests/lab-03/authori
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe("UNAUTHORIZED");
   });
+
+  // API-06: Requester attempts to access Internal Notes (AC-04, FR-14, BR-16)
+  it("rejects Requester attempts to GET internal notes with 403 Forbidden (API-06, AC-04, FR-14, BR-16)", async () => {
+    const res = await request(app)
+      .get(`/api/tickets/${jenniferTicketId}/notes`)
+      .set("Authorization", `Bearer ${jenniferToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+    expect(res.body.notes).toBeUndefined();
+  });
+
+  it("rejects Requester attempts to POST internal notes with 403 Forbidden (API-06, AC-04, FR-14, BR-16)", async () => {
+    const res = await request(app)
+      .post(`/api/tickets/${jenniferTicketId}/notes`)
+      .set("Authorization", `Bearer ${jenniferToken}`)
+      .send({ content: "Requester trying to post internal note" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+  });
+
+  // FR-06: Only REQUESTER role may create tickets
+  it("rejects IT Staff attempting to create a ticket with 403 Forbidden (FR-06)", async () => {
+    const res = await request(app)
+      .post("/api/tickets")
+      .set("Authorization", `Bearer ${staffToken}`)
+      .field("categoryId", "1")
+      .field("relatedSystemId", "1")
+      .field("summary", "Staff trying to create ticket")
+      .field("description", "IT Staff should not be allowed to create tickets.")
+      .field("requestedPriority", "LOW");
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("rejects Administrator attempting to create a ticket with 403 Forbidden (FR-06)", async () => {
+    const res = await request(app)
+      .post("/api/tickets")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .field("categoryId", "1")
+      .field("relatedSystemId", "1")
+      .field("summary", "Admin trying to create ticket")
+      .field("description", "Administrators should not be allowed to create tickets.")
+      .field("requestedPriority", "MEDIUM");
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+  });
 });
+

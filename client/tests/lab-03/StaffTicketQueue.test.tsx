@@ -95,7 +95,7 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
       expect(screen.queryByRole("button", { name: /User Management/i })).not.toBeInTheDocument();
     });
 
-    it("renders IT Staff navigation: Ticket Queue and Create Ticket (UI-03, AC-07, FR-05)", async () => {
+    it("renders IT Staff navigation: Ticket Queue only, no Create Ticket (UI-03, AC-07, FR-05, FR-06)", async () => {
       localStorage.setItem("toktickit_auth_token", "mock-staff-token");
       localStorage.setItem(
         "toktickit_auth_user",
@@ -116,9 +116,11 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
         </AuthProvider>
       );
 
-      // Should show Ticket Queue and Create Ticket
+      // Should show Ticket Queue only
       expect(screen.getAllByRole("button", { name: /Ticket Queue/i }).length).toBeGreaterThan(0);
-      expect(screen.getAllByRole("button", { name: /Create Ticket/i }).length).toBeGreaterThan(0);
+
+      // Should NOT show Create Ticket (IT Staff cannot create tickets per FR-06)
+      expect(screen.queryByRole("button", { name: /Create Ticket/i })).not.toBeInTheDocument();
 
       // Should NOT show My Tickets or User Management
       expect(screen.queryByRole("button", { name: /My Tickets/i })).not.toBeInTheDocument();
@@ -195,7 +197,8 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
       expect(screen.getAllByText("IN PROGRESS").length).toBeGreaterThan(0);
       expect(screen.getAllByText("URGENT").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Alice Support").length).toBeGreaterThan(0);
-      expect(screen.getAllByRole("button", { name: /Open Detail/i }).length).toBeGreaterThan(0);
+      // No separate Action column — entire row is clickable
+      expect(screen.queryByRole("button", { name: /Open Detail/i })).not.toBeInTheDocument();
     });
 
     it("renders empty state when there are zero tickets in queue (UI-04, AC-10)", async () => {
@@ -304,7 +307,7 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
       });
     });
 
-    it("navigates to ticket-detail when clicking Open Detail or row (UI-04)", async () => {
+    it("navigates to ticket-detail when clicking a ticket row (UI-04)", async () => {
       vi.spyOn(api, "getStaffTickets").mockResolvedValue(
         makePageResponse([makeTicket({ id: 42, ticketNumber: "TKT-2026-000042" })])
       );
@@ -316,8 +319,9 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
 
       expect((await screen.findAllByText("TKT-2026-000042")).length).toBeGreaterThan(0);
 
-      const openDetailBtns = screen.getAllByRole("button", { name: /Open Detail/i });
-      fireEvent.click(openDetailBtns[0]);
+      // Click the ticket number link inside the row (rows are fully clickable — no separate Action button)
+      const ticketLinks = screen.getAllByRole("button", { name: /TKT-2026-000042/i });
+      fireEvent.click(ticketLinks[0]);
 
       // Should transition to ticket detail
       expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();

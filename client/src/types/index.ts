@@ -15,6 +15,7 @@ export interface RequesterUser {
   name: string;
   email: string;
   department?: string | null;
+  isActive?: boolean;
 }
 
 export interface Category {

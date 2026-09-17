@@ -485,6 +485,82 @@ async function main() {
   }
 
   console.log(`✓ Seeded demo tickets and attachments successfully.`);
+
+  // 6. Seed Demo Public Comments & Internal Notes
+  const tkt4 = await prisma.ticket.findUnique({ where: { ticketNumber: "TKT-2026-000004" } });
+  const tkt2 = await prisma.ticket.findUnique({ where: { ticketNumber: "TKT-2026-000002" } });
+
+  if (tkt4 && aliceStaff && jennifer && bobStaff) {
+    const existingComments = await prisma.publicComment.count({ where: { ticketId: tkt4.id } });
+    if (existingComments === 0) {
+      await prisma.publicComment.createMany({
+        data: [
+          {
+            ticketId: tkt4.id,
+            authorId: aliceStaff.id,
+            content: "We have checked the VPN gateway and need more log info.",
+            createdAt: new Date("2026-09-17T10:15:00.000Z"),
+          },
+          {
+            ticketId: tkt4.id,
+            authorId: jennifer.id,
+            content: "Uploaded the requested network diagnostic log.",
+            createdAt: new Date("2026-09-17T10:20:00.000Z"),
+          },
+        ],
+      });
+    }
+
+    const existingNotes = await prisma.internalNote.count({ where: { ticketId: tkt4.id } });
+    if (existingNotes === 0) {
+      await prisma.internalNote.createMany({
+        data: [
+          {
+            ticketId: tkt4.id,
+            authorId: aliceStaff.id,
+            content: "Known issue on Gateway cluster 3 after firmware update.",
+            createdAt: new Date("2026-09-17T10:12:00.000Z"),
+          },
+          {
+            ticketId: tkt4.id,
+            authorId: bobStaff.id,
+            content: "Investigating firewall rule changes made yesterday.",
+            createdAt: new Date("2026-09-17T10:25:00.000Z"),
+          },
+        ],
+      });
+    }
+  }
+
+  // Set problemAppearsResolved demonstration on TKT-2026-000002
+  if (tkt2 && jennifer) {
+    await prisma.ticket.update({
+      where: { id: tkt2.id },
+      data: {
+        problemAppearsResolved: true,
+        problemAppearsResolvedAt: new Date("2026-09-17T11:00:00.000Z"),
+      },
+    });
+
+    const existingAudit = await prisma.publicComment.findFirst({
+      where: {
+        ticketId: tkt2.id,
+        content: "Requester indicated that the problem appears resolved.",
+      },
+    });
+    if (!existingAudit) {
+      await prisma.publicComment.create({
+        data: {
+          ticketId: tkt2.id,
+          authorId: jennifer.id,
+          content: "Requester indicated that the problem appears resolved.",
+          createdAt: new Date("2026-09-17T11:00:00.000Z"),
+        },
+      });
+    }
+  }
+
+  console.log(`✓ Seeded demo discussions and requester resolution successfully.`);
 }
 
 main()

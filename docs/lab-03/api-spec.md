@@ -146,7 +146,7 @@
 
 ### `POST /api/tickets`
 * **Description**: Creates a new ticket. The authenticated user ID is automatically recorded as `requesterId`.
-* **Authentication**: Required (Roles: `REQUESTER`, `IT_STAFF`, `ADMINISTRATOR`)
+* **Authentication**: Required (Role: `REQUESTER` only)
 * **Content-Type**: `multipart/form-data`
 * **Form Fields**:
   * `categoryId`: Integer (Required)
@@ -167,8 +167,12 @@
     "createdAt": "2026-09-17T10:00:00.000Z"
   }
   ```
+* **Error Responses**:
+  * `401 Unauthorized`: Missing or invalid token.
+  * `403 Forbidden`: Authenticated user is not a `REQUESTER` (IT Staff and Administrators cannot create tickets).
 
 ---
+
 
 ### `GET /api/tickets/my-tickets`
 * **Description**: Retrieves paginated tickets owned strictly by the currently authenticated user.

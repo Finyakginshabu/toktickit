@@ -146,3 +146,43 @@ staffRouter.get(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Active Staff & Administrator Directory
+// GET /api/staff/users (returns active IT_STAFF and ADMINISTRATOR users for owner assignment)
+// Restricted strictly to IT_STAFF and ADMINISTRATOR
+// ---------------------------------------------------------------------------
+staffRouter.get(
+  "/users",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (_req: Request, res: Response) => {
+    try {
+      const prisma = getPrisma();
+      const staffUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ["IT_STAFF", "ADMINISTRATOR"] },
+          isActive: true,
+        },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      return res.status(200).json(staffUsers);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to retrieve active staff users.",
+        },
+      });
+    }
+  }
+);
+

@@ -104,7 +104,7 @@ TokTickIT reuses and extends the **Zen Green Design System** established in Lab 
   * Ownership filter (*All Tickets*, *Assigned to Me*, *Unassigned*).
   * Clear Filters button.
 * **Queue Data Table**:
-  * Columns: Ticket Number, Created, Summary, Category, Priority, IT Priority, Status, Ticket Owner, Action.
+  * Columns: Ticket Number, Created, Summary, Category, Priority, IT Priority, Status, Ticket Owner.
   * Empty State: "No tickets in queue".
   * No-Results State: "No tickets match your filter criteria" with "Reset Filters" action.
   * Pagination footer: Showing items range, page numbers, Previous/Next buttons.

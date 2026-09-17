@@ -83,9 +83,9 @@ The stakeholder requires the elimination of the development-only Requester selec
 * **FR-04 (Current User Identity & Session)**: The system shall provide an endpoint to retrieve the currently authenticated user's profile and role, and provide a logout endpoint that invalidates authenticated access.
 * **FR-05 (Role-Based Navigation)**: The application shell shall display the user's name and role badge, presenting navigation links strictly restricted to the user's permitted role:
   * Requester: *My Tickets*, *Create Ticket*.
-  * IT Staff: *Ticket Queue*, *Create Ticket*.
+  * IT Staff: *Ticket Queue* only. IT Staff do **not** have a Create Ticket navigation link.
   * Administrator: *User Management*.
-* **FR-06 (Requester Functionality & Attachment Continuity)**: Requesters shall continue to create tickets, view My Tickets, view Ticket Detail, upload attachments (max 5 active), download active attachments, and soft-remove attachments with reason using their authenticated identity without client-supplied `requesterId`.
+* **FR-06 (Requester Functionality & Attachment Continuity)**: Requesters shall continue to create tickets, view My Tickets, view Ticket Detail, upload attachments (max 5 active), download active attachments, and soft-remove attachments with reason using their authenticated identity without client-supplied `requesterId`. Ticket creation (`POST /api/tickets`) is **exclusively restricted to the `REQUESTER` role**. IT Staff and Administrators may not create tickets and shall receive `403 Forbidden` if they attempt to do so.
 * **FR-07 (Requester Resolution Indication)**: An authenticated Requester shall be able to indicate on an owned ticket that the problem appears resolved, recording the indication and posting an automatic audit comment.
 * **FR-08 (IT Staff Ticket Queue)**: The system shall provide IT Staff and Administrators with a unified Ticket Queue displaying tickets across all requesters, supporting search (summary and ticket number), filtering (category, status, priority, ownership), sorting, and pagination.
 * **FR-09 (IT Staff Ticket Detail)**: The system shall display the full ticket details to IT Staff and Administrators, including read-only requester information, editable IT Priority, editable Ticket Owner, permitted status transitions, attachments, Public Comments, and Internal Notes.
@@ -140,7 +140,7 @@ Every protected backend operation is governed by server-side role and ownership 
 | `POST /api/auth/change-password` | POST | Authenticated | Authenticated | Authenticated | Complexity rules; `new !== current` |
 | `GET /api/categories` | GET | Public / All | Public / All | Public / All | Reference data |
 | `GET /api/related-systems` | GET | Public / All | Public / All | Public / All | Reference data |
-| `POST /api/tickets` | POST | Allowed | Allowed | Allowed | Authenticated user is recorded as `requesterId` |
+| `POST /api/tickets` | POST | Allowed | **Forbidden (403)** | **Forbidden (403)** | Exclusively restricted to `REQUESTER` role; authenticated user recorded as `requesterId` |
 | `GET /api/tickets/my-tickets` | GET | Owned Only | Owned Only | Owned Only | Strictly filtered to `requesterId = currentUser.id` |
 | `GET /api/tickets/:id` | GET | Owned Only | Any Ticket | Any Ticket | Requester gets `403/404` for unowned tickets |
 | `POST /api/tickets/:id/attachments` | POST | Owned Only | Any Ticket | Any Ticket | Cap of 5 active attachments per ticket enforced |

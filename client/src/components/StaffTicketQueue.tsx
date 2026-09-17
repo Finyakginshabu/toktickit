@@ -170,17 +170,9 @@ export default function StaffTicketQueue() {
         <div>
           <h1 className="h4 fw-bold mb-1">IT Staff Ticket Queue</h1>
           <p className="text-muted small mb-0">
-            Manage, triage, and reassign tickets across all university requesters.
+            Manage, triage, and reassign tickets across all requesters.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-zen-primary d-flex align-items-center gap-1"
-          onClick={() => setActiveTab("create-ticket")}
-        >
-          <span className="material-symbols-outlined fs-5">add_circle</span>
-          Create Ticket
-        </button>
       </div>
 
       {/* Search & Filter Toolbar */}
@@ -287,17 +279,18 @@ export default function StaffTicketQueue() {
 
           {/* Clear Filters Action */}
           <div className="col-12 col-md-1 text-md-end text-center mt-2 mt-md-0">
-            <button
-              type="button"
-              className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
-              onClick={handleClearFilters}
-              disabled={!hasActiveFilters}
-              title="Clear all active search and filter constraints"
-              aria-label="Clear Filters"
-            >
-              <span className="material-symbols-outlined fs-6">filter_alt_off</span>
-              <span className="d-md-none">Clear</span>
-            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-1"
+                onClick={handleClearFilters}
+                title="Clear all active search and filter constraints"
+                aria-label="Clear Filters"
+              >
+                <span className="material-symbols-outlined fs-6">filter_alt_off</span>
+                <span className="d-md-none">Clear</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -404,7 +397,6 @@ export default function StaffTicketQueue() {
                     </div>
                   </th>
                   <th scope="col">Owner</th>
-                  <th scope="col" className="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -454,18 +446,6 @@ export default function StaffTicketQueue() {
                         <span className="text-muted small fst-italic">Unassigned</span>
                       )}
                     </td>
-                    <td className="text-end">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetail(t.id);
-                        }}
-                      >
-                        Open Detail
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -504,7 +484,6 @@ export default function StaffTicketQueue() {
                 </div>
                 <div className="d-flex justify-content-between align-items-center text-muted small pt-1 border-top">
                   <span>{formatDate(t.createdAt)}</span>
-                  <span className="text-success fw-medium">Open Detail &rarr;</span>
                 </div>
               </div>
             ))}
