@@ -111,12 +111,16 @@ export default function MyTicketsList() {
   };
 
   const formatStatusBadge = (s: TicketStatus) => {
-    const classMap: Record<TicketStatus, string> = {
+    const classMap: Partial<Record<TicketStatus, string>> = {
       NEW: "badge-status-new",
+      OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
+      WAITING_FOR_REQUESTER: "badge-status-waiting",
       PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
+      REOPENED: "badge-status-reopened",
+      CANCELLED: "badge-status-cancelled",
     };
     const label = s.replace("_", " ");
     return <span className={`badge ${classMap[s] || "bg-secondary"}`}>{label}</span>;

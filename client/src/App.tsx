@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
+import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import AppHeader from "./components/AppHeader.js";
-import RequesterSelectorModal from "./components/RequesterSelectorModal.js";
 import CreateTicketForm from "./components/CreateTicketForm.js";
 import MyTicketsList from "./components/MyTicketsList.js";
 import RequesterTicketDetail from "./components/RequesterTicketDetail.js";
+import { Login } from "./components/Login.js";
+import { ChangePassword } from "./components/ChangePassword.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
@@ -95,16 +97,44 @@ function MainContent() {
   );
 }
 
+function AppLayout() {
+  const { user, isLoading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="d-flex align-items-center justify-content-center min-vh-100">
+        <div className="spinner-border text-success" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Mandatory password change check (BR-02)
+  if (user && user.mustChangePassword) {
+    return <ChangePassword />;
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  return (
+    <div className="min-vh-100 d-flex flex-column">
+      <AppHeader />
+      <main className="flex-grow-1">
+        <MainContent />
+      </main>
+    </div>
+  );
+}
+
 export default function App() {
   return (
-    <RequesterProvider>
-      <div className="min-vh-100 d-flex flex-column">
-        <AppHeader />
-        <main className="flex-grow-1">
-          <MainContent />
-        </main>
-        <RequesterSelectorModal />
-      </div>
-    </RequesterProvider>
+    <AuthProvider>
+      <RequesterProvider>
+        <AppLayout />
+      </RequesterProvider>
+    </AuthProvider>
   );
 }

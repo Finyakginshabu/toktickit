@@ -2,6 +2,11 @@ import { RequesterUser, Category, RelatedSystem, Ticket, Attachment } from "./ty
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
+export function getAuthHeaders(): Record<string, string> {
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("toktickit_auth_token") : null;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export * from "./types/index.js";
 
 // Lab 1 System status check
@@ -64,6 +69,9 @@ export async function getRelatedSystems(): Promise<RelatedSystem[]> {
 export async function createTicket(formData: FormData): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+    },
     body: formData,
   }).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -83,7 +91,11 @@ export async function createTicket(formData: FormData): Promise<Ticket> {
 
 // Lab 2 Ticket Detail & Attachment Lifecycle APIs
 export async function getTicketDetail(ticketId: number, requesterId: number): Promise<Ticket> {
-  const res = await fetch(`${API_URL}/api/tickets/${ticketId}?requesterId=${requesterId}`).catch(() => {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}?requesterId=${requesterId}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  }).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
   });
 
@@ -110,6 +122,9 @@ export async function addAttachment(
 
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+    },
     body: formData,
   }).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -136,6 +151,7 @@ export async function softRemoveAttachment(
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ requesterId, reason }),
   }).catch(() => {
@@ -188,7 +204,11 @@ export async function getTickets(params: import("./types/index.js").GetTicketsPa
     query.set("sortOrder", params.sortOrder);
   }
 
-  const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`).catch(() => {
+  const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  }).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
   });
 
