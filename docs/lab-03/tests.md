@@ -3,9 +3,14 @@
 ## 1. Test Strategy
 
 The verification strategy for Lab 3 tests security, role isolation, regression, and end-to-end workflows across the entire stack:
-1. **API & Authorization Tests (Supertest)**: Verifies password hashing, token issue and invalidation, mandatory password change enforcement, role-based endpoint protection, ticket claim/reassign logic, status transition boundaries, append-only comments/notes, and admin safety guards in `server/tests/lab-03/`.
-2. **UI Component & State Tests (Vitest + RTL)**: Tests client form validations, password checklists, role-conditional navigation, queue filters, status transition selectors, and note confidentiality in `client/tests/lab-03/`.
-3. **End-to-End Workflows (Playwright)**: Verifies complete cross-role journeys (Authentication $\to$ Password Change, IT Staff Ticket triage, Admin User management) across Desktop, Tablet, and Mobile in `e2e/lab-03/`.
+1. **Unit Tests (Vitest)**: Tests core domain utility functions, pure business logic, validators, and generators in isolation (`server/tests/lab-03/unit/`):
+   - Password complexity validator (minimum length, character classes, self-reuse prevention).
+   - Ticket status transition matrix engine (allowed next states and prohibited transitions).
+   - Concurrency-safe ticket number formatting and padding.
+   - Role authorization permission evaluator.
+2. **API & Authorization Tests (Supertest)**: Verifies password hashing, token issue and invalidation, mandatory password change enforcement and route locks (`PASSWORD_CHANGE_REQUIRED`), role-based endpoint protection, ticket claim/reassign logic, status transition boundaries, append-only comments/notes, admin safety guards, and attachment lifecycle regression in `server/tests/lab-03/`.
+3. **UI Component & State Tests (Vitest + RTL)**: Tests client form validations, password checklists, role-conditional navigation, queue filters, status transition selectors, and note confidentiality in `client/tests/lab-03/`.
+4. **End-to-End Workflows (Playwright)**: Verifies complete cross-role journeys (Authentication $\to$ Password Change, IT Staff Ticket triage, Admin User management) across Desktop, Tablet, and Mobile in `e2e/lab-03/`.
 
 ---
 
@@ -13,6 +18,10 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **UNIT-01** | Unit | BR-06 | Password complexity & reuse validation utility | Validates $\ge 8$ chars, classes; rejects `new === current` | `server/tests/lab-03/unit/password-validator.test.ts` | Planned |
+| **UNIT-02** | Unit | BR-14 | Ticket status transition matrix evaluator | Returns valid for permitted jumps; returns false for invalid | `server/tests/lab-03/unit/status-transitions.test.ts` | Planned |
+| **UNIT-03** | Unit | BR-01 | Ticket number format generator | Formats numbers as `TKT-YYYY-XXXXXX` | `server/tests/lab-03/unit/ticket-number.test.ts` | Planned |
+| **UNIT-04** | Unit | BR-07, BR-13 | Role permission & ticket ownership evaluator | Accurately distinguishes Requester vs Staff vs Admin rights | `server/tests/lab-03/unit/permissions.test.ts` | Planned |
 | **API-01** | API | AC-01, FR-01, BR-01 | Valid user authentication | `200 OK`, valid JWT token and sanitized profile | `server/tests/lab-03/auth.api.test.ts` | Planned |
 | **API-02** | API | AC-05, FR-02, BR-01 | Login with invalid credentials or inactive account | `401 Unauthorized` with safe generic error | `server/tests/lab-03/auth.api.test.ts` | Planned |
 | **API-03** | API | AC-06, FR-04 | User logout invalidation | `200 OK`, subsequent protected calls return `401` | `server/tests/lab-03/auth.api.test.ts` | Planned |
@@ -20,7 +29,7 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 | **API-05** | API | AC-03, FR-06, BR-03 | Requester ticket ownership boundary | Requester can only access owned tickets | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | **API-06** | API | AC-04, FR-14, BR-16 | Requester attempts to access Internal Notes | `403 Forbidden`, no note data returned | `server/tests/lab-03/authorization.api.test.ts` | Planned |
 | **API-07** | API | AC-24, FR-15 | Non-Admin attempts to access user admin API | `403 Forbidden` | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| **API-08** | API | AC-10, FR-08 | IT Staff Ticket Queue retrieval & filters | `200 OK`, paginated tickets with category/status filters | `server/tests/lab-03/staff-queue.api.test.ts` | Planned |
+| **API-08** | API | AC-10, FR-08, BR-19 | IT Staff Ticket Queue retrieval & filters | `200 OK`, paginated tickets with category/status filters | `server/tests/lab-03/staff-queue.api.test.ts` | Planned |
 | **API-09** | API | AC-11, FR-10 | Claim unassigned ticket by IT Staff | `200 OK`, `ticketOwnerId` set, status updated | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
 | **API-10** | API | AC-12, FR-10 | Reassign ticket ownership to another staff | `200 OK`, new owner persisted | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
 | **API-11** | API | AC-13, FR-11, BR-12 | Update IT Priority independently | `200 OK`, `itPriority` changed, `requestedPriority` unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
@@ -31,10 +40,18 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 | **API-16** | API | AC-17, FR-14, BR-15 | Post and retrieve Internal Notes | `201 Created` / `200 OK`, notes visible to staff only | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
 | **API-17** | API | AC-18, FR-15 | Admin lists users with search and filter | `200 OK`, user list matching criteria | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | **API-18** | API | AC-19, FR-16, BR-07 | Admin creates new user with initial password | `201 Created`, `mustChangePassword = true` | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-19** | API | AC-20, FR-17 | Admin edits user details | `200 OK`, updated name/role persisted | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
+| **API-19** | API | AC-20, FR-17, BR-11 | Admin edits user details (retaining own email) | `200 OK`, updated details saved without 409 conflict | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | **API-20** | API | AC-21, FR-19, BR-08 | Admin attempts self-deactivation | `400 Bad Request`, operation blocked | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | **API-21** | API | AC-22, FR-19, BR-09 | Admin deactivates last active Admin | `400 Bad Request`, operation blocked | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
 | **API-22** | API | AC-23, FR-18, BR-17 | Admin resets user initial password | `200 OK`, `mustChangePassword = true` set | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
+| **API-23** | API | AC-25, FR-06, BR-18 | Attachment upload on owned ticket using auth token | `201 Created`, attachment linked to ticket | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
+| **API-24** | API | AC-25, BR-18 | Upload 6th attachment when ticket has 5 active files | `400 Bad Request`, max 5 active attachments cap enforced | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
+| **API-25** | API | AC-25, BR-18 | Soft-remove attachment with valid reason | `200 OK`, `isRemoved = true`, reason recorded | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
+| **API-26** | API | AC-25, BR-18 | Download soft-removed attachment binary | `410 Gone`, download refused | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
+| **API-27** | API | AC-25, BR-03 | Cross-user attachment download attempt | `403 Forbidden` / `404 Not Found` | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
+| **API-28** | API | AC-02, BR-02 | Direct API call with `mustChangePassword = true` | `403 Forbidden` (`PASSWORD_CHANGE_REQUIRED`) | `server/tests/lab-03/auth.api.test.ts` | Planned |
+| **API-29** | API | BR-06 | Change password to same existing temporary password | `400 Bad Request` (`new === current` rejected) | `server/tests/lab-03/auth.api.test.ts` | Planned |
+| **API-30** | API | AC-12, BR-13 | Assign ticket owner to requester or inactive user | `400 Bad Request`, assignment rejected | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
 | **UI-01** | UI | AC-01, AC-05 | Login screen form validation and error states | Inline errors on empty inputs; generic alert on failure | `client/tests/lab-03/Login.test.tsx` | Planned |
 | **UI-02** | UI | AC-02, BR-02 | Change Password complexity checklist | Shows checklist satisfaction and enables submit | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
 | **UI-03** | UI | AC-07, FR-05 | Role-based header navigation rendering | Verifies distinct navigation tabs per user role | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
@@ -53,20 +70,20 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 | Acceptance Criterion | Covered By Automated Tests | Description |
 | :--- | :--- | :--- |
 | **AC-01** (Valid Auth) | `API-01`, `UI-01`, `E2E-01` | Valid login returns token, user identity, and role. |
-| **AC-02** (Password Change) | `API-04`, `UI-02`, `E2E-01` | First-login password change blocks normal access until resolved. |
+| **AC-02** (Password Change) | `API-04`, `API-28`, `API-29`, `UI-02`, `E2E-01` | First-login password change blocks normal access until resolved. |
 | **AC-03** (Ownership Bound) | `API-05` | Requester identity enforces ownership over ticket access. |
 | **AC-04** (Notes Forbidden)| `API-06` | Requesters blocked from internal notes without leaking content. |
 | **AC-05** (Invalid Login) | `API-02`, `UI-01` | Bad credentials or inactive account returns generic safe error. |
 | **AC-06** (Logout) | `API-03`, `E2E-01` | Logout invalidates session and redirects to login. |
 | **AC-07** (Role Navigation) | `UI-03` | Application shell displays only permitted role links. |
-| **AC-08** (Requester Regress)| `API-05` | Lab 2 ticket creation, search, and attachments continue working. |
+| **AC-08** (Requester Regress)| `API-05`, `API-23` | Lab 2 ticket creation, search, and attachments continue working. |
 | **AC-09** (Problem Resolved)| `API-14` | Requester indicates problem resolved without changing formal status. |
 | **AC-10** (Staff Queue) | `API-08`, `UI-04`, `E2E-02` | Queue displays tickets with search, filters, and pagination. |
 | **AC-11** (Claim Ticket) | `API-09`, `UI-05`, `E2E-02` | Unassigned tickets claimed by IT Staff and moved to OPEN. |
-| **AC-12** (Reassign Owner) | `API-10` | Tickets reassigned to another active staff member. |
+| **AC-12** (Reassign Owner) | `API-10`, `API-30` | Tickets reassigned to another active staff member. |
 | **AC-13** (IT Priority) | `API-11`, `UI-05`, `E2E-02` | IT Priority updated independently of Requested Priority. |
 | **AC-14** (Status Transition)| `API-12`, `E2E-02` | Permitted transitions advance ticket workflow. |
-| **AC-15** (Invalid Status) | `API-13` | Prohibited transitions rejected with HTTP 400. |
+| **AC-15** (Invalid Status) | `API-13`, `UNIT-02` | Prohibited transitions rejected with HTTP 400. |
 | **AC-16** (Public Comments) | `API-15`, `UI-06` | Append-only public comments visible to Requester and Staff. |
 | **AC-17** (Internal Notes) | `API-16`, `UI-06` | Append-only internal notes visible only to Staff and Admin. |
 | **AC-18** (User Listing) | `API-17`, `UI-07`, `E2E-03` | Admin lists users with search and role filters. |
@@ -75,7 +92,8 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 | **AC-21** (Self-Deactivate) | `API-20`, `UI-07` | Admin self-deactivation blocked by backend and UI. |
 | **AC-22** (Last Admin Guard)| `API-21` | Deactivating the sole active Admin is blocked. |
 | **AC-23** (Password Reset) | `API-22`, `E2E-03` | Admin sets new initial password with forced change on next login. |
-| **AC-24** (Admin RBAC) | `API-07` | Non-Admin access to User Management returns HTTP 403. |
+| **AC-24** (Admin RBAC) | `API-07`, `UNIT-04` | Non-Admin access to User Management returns HTTP 403. |
+| **AC-25** (Attachment Regress)| `API-23`, `API-24`, `API-25`, `API-26`, `API-27` | Attachment upload, 5 cap, soft removal, 410 download, and cross-user rejection. |
 
 ---
 
@@ -94,7 +112,8 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 
 ## 5. Test Commands
 
-* Run Server API Tests: `npm run test --prefix server`
-* Run Client UI Tests: `npm run test --prefix client`
+* Run Server Unit Tests: `npm run test --prefix server -- server/tests/lab-03/unit/`
+* Run Server API Tests: `npm run test --prefix server -- server/tests/lab-03/`
+* Run Client UI Tests: `npm run test --prefix client -- client/tests/lab-03/`
 * Run Playwright E2E Tests: `npx playwright test e2e/lab-03`
 * Run Complete Suite: `npm run test:all`

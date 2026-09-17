@@ -10,11 +10,13 @@
 * **Authentication Header**:
   * Standard HTTP Header: `Authorization: Bearer <jwt-token>`
   * Required on all protected endpoints.
+  * The server derives user identity (`userId`, `role`, `mustChangePassword`) strictly from the verified token. Client-supplied `requesterId` parameters are completely eliminated and ignored.
+  * **Mandatory Password Change Route Guard**: If an authenticated user has `mustChangePassword = true`, any request to general endpoints (e.g. `/api/tickets/*`, `/api/staff/*`, `/api/admin/*`) is intercepted and rejected with HTTP 403 Forbidden (`PASSWORD_CHANGE_REQUIRED`), allowing access only to `GET /api/auth/me`, `POST /api/auth/logout`, and `POST /api/auth/change-password`.
 * **Standard Error Response Format**:
   ```json
   {
     "error": {
-      "code": "UNAUTHORIZED | FORBIDDEN | VALIDATION_ERROR | NOT_FOUND | BAD_REQUEST | CONFLICT | PAYLOAD_TOO_LARGE | UNSUPPORTED_MEDIA_TYPE | GONE | INTERNAL_ERROR",
+      "code": "UNAUTHORIZED | FORBIDDEN | PASSWORD_CHANGE_REQUIRED | VALIDATION_ERROR | NOT_FOUND | BAD_REQUEST | CONFLICT | PAYLOAD_TOO_LARGE | UNSUPPORTED_MEDIA_TYPE | GONE | INTERNAL_ERROR",
       "message": "Human-readable error description",
       "details": [
         { "field": "password", "message": "Password must be at least 8 characters" }
@@ -28,8 +30,8 @@
 ## 2. Authentication & Credential Endpoints
 
 ### `POST /api/auth/login`
-* **Description**: Authenticates user via email and password, returning JWT token and sanitized user profile.
-* **Authentication**: None
+* **Description**: Authenticates user via email and password, returning JWT token and sanitized user profile. Email is sanitized with `.toLowerCase().trim()`.
+* **Authentication**: None (Public)
 * **Request Body**:
   ```json
   {
@@ -104,7 +106,7 @@
   }
   ```
 * **Error Responses**:
-  * `400 Bad Request`: Validation failure (new password < 8 chars or does not meet complexity rules).
+  * `400 Bad Request`: Validation failure (new password < 8 chars, fails complexity rules, or `newPassword === currentPassword`).
   * `401 Unauthorized`: Current password incorrect.
 
 ---
@@ -140,19 +142,19 @@
 
 ---
 
-## 4. Requester Ticket Endpoints
+## 4. Requester Ticket & Attachment Endpoints
 
 ### `POST /api/tickets`
-* **Description**: Creates a new ticket for the authenticated user.
-* **Authentication**: Required (Role: `REQUESTER` or `IT_STAFF`)
+* **Description**: Creates a new ticket. The authenticated user ID is automatically recorded as `requesterId`.
+* **Authentication**: Required (Roles: `REQUESTER`, `IT_STAFF`, `ADMINISTRATOR`)
 * **Content-Type**: `multipart/form-data`
 * **Form Fields**:
   * `categoryId`: Integer (Required)
   * `relatedSystemId`: Integer (Required)
-  * `summary`: String, 5–100 chars (Required)
-  * `description`: String, 10–2000 chars (Required)
+  * `summary`: String, 5–100 chars (Required, trimmed)
+  * `description`: String, 10–2000 chars (Required, trimmed)
   * `requestedPriority`: `LOW | MEDIUM | HIGH | URGENT` (Optional, default `MEDIUM`)
-  * `attachments`: Files up to 5 items, max 5 MB each.
+  * `attachments`: Files up to 5 items, max 5 MB each (`.jpg`, `.jpeg`, `.png`, `.webp`, `.pdf`).
 * **Success Response (`201 Created`)**:
   ```json
   {
@@ -169,7 +171,7 @@
 ---
 
 ### `GET /api/tickets/my-tickets`
-* **Description**: Retrieves paginated tickets owned by the currently authenticated Requester.
+* **Description**: Retrieves paginated tickets owned strictly by the currently authenticated user.
 * **Authentication**: Required (`Bearer <token>`)
 * **Query Parameters**:
   * `search`: String (searches summary and ticket number)
@@ -177,7 +179,7 @@
   * `status`: `TicketStatus`
   * `priority`: `Priority`
   * `page`: Integer (default 1)
-  * `pageSize`: Integer (default 10)
+  * `pageSize`: Integer (default 10, clamped 1–50)
   * `sortBy`: `createdAt | requestedPriority | currentStatus` (default `createdAt`)
   * `sortOrder`: `asc | desc` (default `desc`)
 * **Success Response (`200 OK`)**:
@@ -209,7 +211,7 @@
 ---
 
 ### `GET /api/tickets/:id`
-* **Description**: Retrieves single ticket details. Requesters can only retrieve tickets they own; IT Staff and Admins can retrieve any ticket.
+* **Description**: Retrieves single ticket details with active attachments. Requesters can only retrieve tickets they own; IT Staff and Admins can retrieve any ticket.
 * **Authentication**: Required (`Bearer <token>`)
 * **Success Response (`200 OK`)**:
   ```json
@@ -226,7 +228,17 @@
     "ticketOwner": null,
     "category": { "id": 4, "name": "Network" },
     "relatedSystem": { "id": 3, "name": "VPN" },
-    "attachments": [],
+    "attachments": [
+      {
+        "id": 5,
+        "fileName": "sample_battery_report.pdf",
+        "originalName": "battery_report.pdf",
+        "fileSize": 42,
+        "mimeType": "application/pdf",
+        "isRemoved": false,
+        "uploadedAt": "2026-09-17T10:00:00.000Z"
+      }
+    ],
     "createdAt": "2026-09-17T10:00:00.000Z",
     "updatedAt": "2026-09-17T10:00:00.000Z"
   }
@@ -237,7 +249,7 @@
 ---
 
 ### `POST /api/tickets/:id/indicate-resolved`
-* **Description**: Allows the ticket owner (Requester) to indicate that their issue appears resolved. Does not change formal status to `RESOLVED`.
+* **Description**: Allows the ticket owner (Requester) to indicate that their issue appears resolved. Does not change formal status to `RESOLVED` or `CLOSED`.
 * **Authentication**: Required (Ticket Owner only)
 * **Success Response (`200 OK`)**:
   ```json
@@ -247,6 +259,87 @@
     "problemAppearsResolvedAt": "2026-09-17T11:00:00.000Z"
   }
   ```
+
+---
+
+### `POST /api/tickets/:id/attachments`
+* **Description**: Uploads a new attachment to an existing ticket. Enforces maximum 5 active attachments per ticket. Requesters can only upload to owned tickets; IT Staff and Admins can upload to any ticket.
+* **Authentication**: Required (`Bearer <token>`)
+* **Content-Type**: `multipart/form-data`
+* **Form Fields**:
+  * `file`: Binary file (allowed types: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`; size: 1 byte to 5,242,880 bytes).
+* **Success Response (`201 Created`)**:
+  ```json
+  {
+    "id": 6,
+    "ticketId": 12,
+    "originalName": "network_trace.png",
+    "fileSize": 204800,
+    "mimeType": "image/png",
+    "isRemoved": false,
+    "uploadedAt": "2026-09-17T10:15:00.000Z"
+  }
+  ```
+* **Error Responses**:
+  * `400 Bad Request`: Ticket already has 5 active attachments, or empty/invalid file.
+  * `403 Forbidden`: Ticket not owned by Requester.
+  * `413 Payload Too Large`: File exceeds 5 MB.
+  * `415 Unsupported Media Type`: File type not permitted.
+
+---
+
+### `GET /api/attachments/:id`
+* **Description**: Retrieves metadata for a single attachment.
+* **Authentication**: Required (`Bearer <token>`)
+* **Success Response (`200 OK`)**:
+  ```json
+  {
+    "id": 6,
+    "ticketId": 12,
+    "originalName": "network_trace.png",
+    "fileSize": 204800,
+    "mimeType": "image/png",
+    "isRemoved": false,
+    "removedReason": null,
+    "removedAt": null,
+    "uploadedAt": "2026-09-17T10:15:00.000Z"
+  }
+  ```
+
+---
+
+### `GET /api/attachments/:id/download`
+* **Description**: Streams the binary file of an active attachment. Blocked if attachment is soft-removed (`isRemoved = true`). Requesters can only download attachments from owned tickets.
+* **Authentication**: Required (`Bearer <token>`)
+* **Success Response (`200 OK`)**:
+  * Binary stream with `Content-Disposition: attachment; filename="..."` and `Content-Type`.
+* **Error Responses**:
+  * `403 Forbidden` / `404 Not Found`: Requester does not own the parent ticket.
+  * `410 Gone`: Attachment has been soft-removed.
+
+---
+
+### `PATCH /api/attachments/:id/soft-remove`
+* **Description**: Soft-removes an attachment, preserving metadata while permanently blocking binary file download.
+* **Authentication**: Required (`Bearer <token>`)
+* **Request Body**:
+  ```json
+  {
+    "removedReason": "Uploaded incorrect diagnostic report"
+  }
+  ```
+* **Success Response (`200 OK`)**:
+  ```json
+  {
+    "id": 6,
+    "isRemoved": true,
+    "removedReason": "Uploaded incorrect diagnostic report",
+    "removedAt": "2026-09-17T10:20:00.000Z"
+  }
+  ```
+* **Error Responses**:
+  * `400 Bad Request`: Missing `removedReason`, shorter than 3 characters, or attachment is already removed (`"Attachment is already removed"`).
+  * `403 Forbidden`: Requester does not own the parent ticket.
 
 ---
 
@@ -262,7 +355,7 @@
   * `itPriority`: `Priority`
   * `ownerId`: Integer (`0` or `unassigned` for unassigned tickets)
   * `page`: Integer (default 1)
-  * `pageSize`: Integer (default 10)
+  * `pageSize`: Integer (default 10, clamped 1–50)
   * `sortBy`: `createdAt | itPriority | currentStatus` (default `createdAt`)
   * `sortOrder`: `asc | desc` (default `desc`)
 * **Success Response (`200 OK`)**:
@@ -297,7 +390,7 @@
 ---
 
 ### `PATCH /api/tickets/:id/assignment`
-* **Description**: Claims ticket ownership or assigns ownership to an active IT Staff or Admin.
+* **Description**: Claims ticket ownership or assigns ownership to an active IT Staff or Administrator.
 * **Authentication**: Required (Roles: `IT_STAFF`, `ADMINISTRATOR`)
 * **Request Body**:
   ```json
@@ -314,8 +407,8 @@
   }
   ```
 * **Error Responses**:
-  * `400 Bad Request`: `ownerId` is not an active IT Staff or Administrator account.
-  * `403 Forbidden`: Non-IT Staff user.
+  * `400 Bad Request`: `ownerId` does not reference an active user with role `IT_STAFF` or `ADMINISTRATOR`.
+  * `403 Forbidden`: Non-staff user.
 
 ---
 
@@ -383,7 +476,7 @@
 ---
 
 ### `POST /api/tickets/:id/comments`
-* **Description**: Creates a new append-only Public Comment.
+* **Description**: Creates a new append-only Public Comment. Content must be 1 to 2000 characters after whitespace trimming.
 * **Authentication**: Required (Requester for owned ticket, IT Staff, Admin)
 * **Request Body**:
   ```json
@@ -401,6 +494,8 @@
     "createdAt": "2026-09-17T10:20:00.000Z"
   }
   ```
+* **Error Responses**:
+  * `400 Bad Request`: Empty or whitespace-only content, or content exceeding 2000 characters.
 
 ---
 
@@ -425,7 +520,7 @@
 ---
 
 ### `POST /api/tickets/:id/notes`
-* **Description**: Appends an Internal Note.
+* **Description**: Appends an Internal Note. Content must be 1 to 2000 characters after whitespace trimming.
 * **Authentication**: Required (Roles: `IT_STAFF`, `ADMINISTRATOR`)
 * **Request Body**:
   ```json
@@ -443,6 +538,8 @@
     "createdAt": "2026-09-17T10:25:00.000Z"
   }
   ```
+* **Error Responses**:
+  * `400 Bad Request`: Empty or whitespace-only content, or content exceeding 2000 characters.
 
 ---
 
@@ -474,7 +571,7 @@
 ---
 
 ### `POST /api/admin/users`
-* **Description**: Creates a new user account with one role and an initial password.
+* **Description**: Creates a new user account with one role and an initial password. Email is normalized to `.toLowerCase().trim()`.
 * **Authentication**: Required (Role: `ADMINISTRATOR`)
 * **Request Body**:
   ```json
@@ -505,7 +602,7 @@
 ---
 
 ### `PATCH /api/admin/users/:id`
-* **Description**: Edits an existing user account's name, email, role, or activation status.
+* **Description**: Edits an existing user account's name, email, role, or activation status. Email uniqueness check excludes the user's own `id`.
 * **Authentication**: Required (Role: `ADMINISTRATOR`)
 * **Request Body**:
   ```json
