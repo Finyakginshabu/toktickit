@@ -8,6 +8,7 @@ import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadAttachments } from "./middleware/upload.js";
 import { Priority, TicketStatus } from "@prisma/client";
 import { authRouter } from "./routes/auth.js";
+import { staffRouter } from "./routes/staff.js";
 import { optionalAuthenticateToken, requirePasswordChangeResolved } from "./middleware/auth.js";
 
 export const app = express();
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRouter);
+app.use("/api/staff", staffRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1 — API health check
@@ -532,7 +534,7 @@ app.get("/api/tickets/:id", optionalAuthenticateToken, requirePasswordChangeReso
       return res.status(404).json({
         error: {
           code: "NOT_FOUND",
-          message: "Ticket not found.",
+          message: "Ticket No.t found.",
         },
       });
     }
@@ -690,7 +692,7 @@ app.post(
       if (file && fs.existsSync(file.path)) {
         try {
           fs.unlinkSync(file.path);
-        } catch (_e) {}
+        } catch (_e) { }
       }
     };
 
@@ -737,7 +739,7 @@ app.post(
         return res.status(404).json({
           error: {
             code: "NOT_FOUND",
-            message: "Ticket not found.",
+            message: "Ticket No.t found.",
           },
         });
       }

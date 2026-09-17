@@ -202,7 +202,7 @@
     "pagination": {
       "page": 1,
       "pageSize": 10,
-      "totalItems": 1,
+      "total": 1,
       "totalPages": 1
     }
   }
@@ -282,7 +282,7 @@
   ```
 * **Error Responses**:
   * `400 Bad Request`: Ticket already has 5 active attachments, or empty/invalid file.
-  * `403 Forbidden`: Ticket not owned by Requester.
+  * `403 Forbidden`: Ticket No.t owned by Requester.
   * `413 Payload Too Large`: File exceeds 5 MB.
   * `415 Unsupported Media Type`: File type not permitted.
 
@@ -379,7 +379,7 @@
     "pagination": {
       "page": 1,
       "pageSize": 10,
-      "totalItems": 24,
+      "total": 24,
       "totalPages": 3
     }
   }

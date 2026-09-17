@@ -104,15 +104,16 @@ TokTickIT reuses and extends the **Zen Green Design System** established in Lab 
   * Ownership filter (*All Tickets*, *Assigned to Me*, *Unassigned*).
   * Clear Filters button.
 * **Queue Data Table**:
-  * Columns: Ticket Number, Created Date, Summary, Category, Requested Priority, IT Priority, Status, Ticket Owner, Action.
+  * Columns: Ticket Number, Created, Summary, Category, Priority, IT Priority, Status, Ticket Owner, Action.
   * Empty State: "No tickets in queue".
   * No-Results State: "No tickets match your filter criteria" with "Reset Filters" action.
   * Pagination footer: Showing items range, page numbers, Previous/Next buttons.
+  (*table ui should be similar to table of My Ticket with different component*)
 
 ### 3.5. IT Staff Ticket Detail Screen
 * **Dual-Column Operational Layout**:
   * **Left Column / Ticket Details**:
-    * System fields: Ticket Number, Created Date, Requester Name, Category, Related System.
+    * System fields: Ticket Number, Created, Requester Name, Category, Related System.
     * Editable Controls:
       * **Ticket Owner**: Dropdown of active IT Staff with "Claim" quick-action button.
       * **IT Priority**: Dropdown selector (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
@@ -148,3 +149,25 @@ TokTickIT reuses and extends the **Zen Green Design System** established in Lab 
 
 * **Keyboard Focus**: Focus visible rings (`2px solid #006B3C`) on all interactive buttons, inputs, and modals.
 * **Color Blindness**: All status and priority badges combine distinctive color fills with explicit text labels and icon shapes.
+
+---
+
+## 5. Standard Page URLs
+
+> **Dev server**: `http://localhost:5173` (Vite, client) · `http://localhost:3000` (Express, API). All client routes are path-based (React Router or equivalent).
+
+| Page / Screen | URL | Accessible By |
+| :--- | :--- | :--- |
+| **Login** | `http://localhost:5173/login` | Public (unauthenticated) |
+| **Mandatory Password Change** | `http://localhost:5173/change-password` | Any authenticated user with `mustChangePassword = true` |
+| **My Tickets List** | `http://localhost:5173/my-tickets` | Requester |
+| **Create Ticket** | `http://localhost:5173/create-ticket` | Requester, IT Staff, Administrator |
+| **Requester Ticket Detail** | `http://localhost:5173/tickets/:id` | Requester (own tickets only) |
+| **IT Staff Ticket Queue** | `http://localhost:5173/staff/queue` | IT Staff, Administrator |
+| **IT Staff Ticket Detail** | `http://localhost:5173/staff/tickets/:id` | IT Staff, Administrator |
+| **Administrator User Management** | `http://localhost:5173/admin/users` | Administrator |
+
+> **Route Guard Rules**:
+> - Unauthenticated users accessing any protected route are redirected to `/login`.
+> - Authenticated users with `mustChangePassword = true` are redirected to `/change-password` regardless of destination.
+> - Role mismatches (e.g. Requester accessing `/staff/queue`) return HTTP 403 from the API and redirect to the user's default landing page on the client.

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRequester } from "../context/RequesterContext.js";
 import { useAuth } from "../context/AuthContext.js";
-import { Role } from "../types/index.js";
+import { Role, AppTab } from "../types/index.js";
 
 export function RoleBadge({ role }: { role: Role }) {
   if (role === "REQUESTER") {
@@ -67,7 +67,7 @@ export default function AppHeader() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleNavClick = (tab: "my-tickets" | "create-ticket") => {
+  const handleNavClick = (tab: AppTab) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
   };
@@ -83,22 +83,58 @@ export default function AppHeader() {
 
         {/* Desktop Navigation Tabs */}
         <nav className="d-none d-md-flex align-items-center gap-2 flex-grow-1 ms-3">
-          <button
-            type="button"
-            className={`btn btn-sm ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
-            onClick={() => handleNavClick("my-tickets")}
-          >
-            <span className="material-symbols-outlined fs-6 me-1">assignment</span>
-            My Tickets
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
-            onClick={() => handleNavClick("create-ticket")}
-          >
-            <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
-            Create Ticket
-          </button>
+          {(!authUser || authUser.role === "REQUESTER") && (
+            <>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("my-tickets")}
+              >
+                <span className="material-symbols-outlined fs-6 me-1">assignment</span>
+                My Tickets
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("create-ticket")}
+              >
+                <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
+                Create Ticket
+              </button>
+            </>
+          )}
+
+          {authUser?.role === "IT_STAFF" && (
+            <>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("ticket-queue")}
+              >
+                <span className="material-symbols-outlined fs-6 me-1">confirmation_number</span>
+                Ticket Queue
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("create-ticket")}
+              >
+                <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
+                Create Ticket
+              </button>
+            </>
+          )}
+
+          {authUser?.role === "ADMINISTRATOR" && (
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === "user-management" ? "zen-nav-link active" : "zen-nav-link"}`}
+              onClick={() => handleNavClick("user-management")}
+            >
+              <span className="material-symbols-outlined fs-6 me-1">manage_accounts</span>
+              User Management
+            </button>
+          )}
         </nav>
 
         {/* Desktop Identity & Session */}
@@ -145,22 +181,58 @@ export default function AppHeader() {
       {isMobileMenuOpen && (
         <div className="zen-mobile-menu d-md-none mt-2 pt-2">
           <div className="d-flex flex-column gap-2">
-            <button
-              type="button"
-              className={`zen-mobile-nav-link ${activeTab === "my-tickets" ? "active" : ""}`}
-              onClick={() => handleNavClick("my-tickets")}
-            >
-              <span className="material-symbols-outlined me-2">assignment</span>
-              My Tickets
-            </button>
-            <button
-              type="button"
-              className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
-              onClick={() => handleNavClick("create-ticket")}
-            >
-              <span className="material-symbols-outlined me-2">add_circle</span>
-              Create Ticket
-            </button>
+            {(!authUser || authUser.role === "REQUESTER") && (
+              <>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link ${activeTab === "my-tickets" ? "active" : ""}`}
+                  onClick={() => handleNavClick("my-tickets")}
+                >
+                  <span className="material-symbols-outlined me-2">assignment</span>
+                  My Tickets
+                </button>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
+                  onClick={() => handleNavClick("create-ticket")}
+                >
+                  <span className="material-symbols-outlined me-2">add_circle</span>
+                  Create Ticket
+                </button>
+              </>
+            )}
+
+            {authUser?.role === "IT_STAFF" && (
+              <>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link ${activeTab === "ticket-queue" ? "active" : ""}`}
+                  onClick={() => handleNavClick("ticket-queue")}
+                >
+                  <span className="material-symbols-outlined me-2">confirmation_number</span>
+                  Ticket Queue
+                </button>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
+                  onClick={() => handleNavClick("create-ticket")}
+                >
+                  <span className="material-symbols-outlined me-2">add_circle</span>
+                  Create Ticket
+                </button>
+              </>
+            )}
+
+            {authUser?.role === "ADMINISTRATOR" && (
+              <button
+                type="button"
+                className={`zen-mobile-nav-link ${activeTab === "user-management" ? "active" : ""}`}
+                onClick={() => handleNavClick("user-management")}
+              >
+                <span className="material-symbols-outlined me-2">manage_accounts</span>
+                User Management
+              </button>
+            )}
 
             {/* User Profile Box in Mobile Drawer */}
             {authUser && (

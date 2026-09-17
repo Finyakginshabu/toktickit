@@ -30,7 +30,7 @@ export default function RequesterTicketDetail() {
         setIsForbidden(true);
         setError("Access denied. You do not own this ticket.");
       } else if (err.status === 404 || err.code === "NOT_FOUND") {
-        setError("Ticket not found.");
+        setError("Ticket No.t found.");
       } else {
         setError(err.message || "Failed to load ticket details.");
       }
@@ -220,7 +220,7 @@ export default function RequesterTicketDetail() {
 
           {/* Priorities */}
           <div className="col-6 col-md-4">
-            <label className="form-label fw-semibold small text-muted mb-1">Requested Priority</label>
+            <label className="form-label fw-semibold small text-muted mb-1">Priority</label>
             <div className="p-2 border rounded zen-input-readonly d-flex align-items-center justify-content-between">
               <span className="small fw-semibold">{ticket.requestedPriority}</span>
               {formatPriorityBadge(ticket.requestedPriority)}

@@ -40,6 +40,13 @@ export type TicketStatus =
   | "CANCELLED"
   | "PENDING";
 
+export type AppTab =
+  | "my-tickets"
+  | "ticket-queue"
+  | "create-ticket"
+  | "ticket-detail"
+  | "user-management";
+
 export interface GetTicketsParams {
   requesterId: number;
   search?: string;
@@ -49,6 +56,18 @@ export interface GetTicketsParams {
   page?: number;
   pageSize?: number;
   sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface GetStaffTicketsParams {
+  search?: string;
+  categoryId?: number;
+  status?: TicketStatus;
+  itPriority?: Priority;
+  ownerId?: number | "unassigned" | "";
+  page?: number;
+  pageSize?: number;
+  sortBy?: "createdAt" | "itPriority" | "currentStatus" | "ticketNumber";
   sortOrder?: "asc" | "desc";
 }
 

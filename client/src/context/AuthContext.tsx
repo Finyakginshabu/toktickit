@@ -1,20 +1,65 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { User } from "../types/index.js";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { User, AppTab } from "../types/index.js";
+
+// ---------------------------------------------------------------------------
+// URL ↔ AppTab mapping (matches docs/lab-03/ui-spec.md §5 Standard Page URLs)
+// ---------------------------------------------------------------------------
+const TAB_TO_PATH: Record<AppTab, string> = {
+  "my-tickets":     "/my-tickets",
+  "create-ticket":  "/create-ticket",
+  "ticket-detail":  "/tickets",       // /tickets/:id — id appended separately
+  "ticket-queue":   "/staff/queue",
+  "user-management": "/admin/users",
+};
+
+const AUTH_PATHS: Record<string, AppTab> = {
+  "/my-tickets":     "my-tickets",
+  "/create-ticket":  "create-ticket",
+  "/staff/queue":    "ticket-queue",
+  "/admin/users":    "user-management",
+};
+
+/** Derive AppTab from the current browser path. Returns null for /login, /change-password, and unknown paths. */
+function pathToTab(pathname: string): AppTab | null {
+  if (pathname.startsWith("/tickets/")) return "ticket-detail";
+  return AUTH_PATHS[pathname] ?? null;
+}
+
+/** Push a new history entry only when the path actually changes. */
+function syncUrl(tab: AppTab, ticketId?: number | null) {
+  const isTest =
+    (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") ||
+    (typeof process !== "undefined" && process?.env?.NODE_ENV === "test");
+  if (isTest) return; // don't touch window.location in tests
+
+  let path = TAB_TO_PATH[tab];
+  if (tab === "ticket-detail" && ticketId) path = `/tickets/${ticketId}`;
+
+  if (window.location.pathname !== path) {
+    window.history.pushState({ tab, ticketId: ticketId ?? null }, "", path);
+  }
+}
 
 const TOKEN_KEY = "toktickit_auth_token";
 const USER_KEY = "toktickit_auth_user";
+
+export function getDefaultTab(role?: string): AppTab {
+  if (role === "IT_STAFF") return "ticket-queue";
+  if (role === "ADMINISTRATOR") return "user-management";
+  return "my-tickets";
+}
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   error: string | null;
-  activeTab: "my-tickets" | "create-ticket" | "ticket-detail";
+  activeTab: AppTab;
   selectedTicketId: number | null;
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  setActiveTab: (tab: "my-tickets" | "create-ticket" | "ticket-detail") => void;
+  setActiveTab: (tab: AppTab) => void;
   setSelectedTicketId: (id: number | null) => void;
   clearError: () => void;
 }
@@ -29,8 +74,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket" | "ticket-detail">("my-tickets");
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [activeTab, setActiveTabRaw] = useState<AppTab>(() => {
+    // 1. Try to restore from current URL path
+    const fromPath = typeof window !== "undefined" ? pathToTab(window.location.pathname) : null;
+    if (fromPath) return fromPath;
+    // 2. Fall back to role-based default from saved user
+    const saved = localStorage.getItem(USER_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return getDefaultTab(parsed?.role);
+      } catch {}
+    }
+    return "my-tickets";
+  });
+  const [selectedTicketId, setSelectedTicketIdRaw] = useState<number | null>(() => {
+    // Restore ticket id from path like /tickets/42
+    if (typeof window !== "undefined") {
+      const m = window.location.pathname.match(/^\/tickets\/(\d+)$/);
+      if (m) return Number(m[1]);
+    }
+    return null;
+  });
+
+  // Wrapped setters that keep URL in sync
+  const setActiveTab = useCallback((tab: AppTab) => {
+    setActiveTabRaw(tab);
+    syncUrl(tab);
+  }, []);
+
+  const setSelectedTicketId = useCallback((id: number | null) => {
+    setSelectedTicketIdRaw(id);
+    if (id !== null) syncUrl("ticket-detail", id);
+  }, []);
+
+  // Handle browser back / forward
+  useEffect(() => {
+    function onPopState(event: PopStateEvent) {
+      const state = event.state as { tab?: AppTab; ticketId?: number | null } | null;
+      if (state?.tab) {
+        setActiveTabRaw(state.tab);
+        setSelectedTicketIdRaw(state.ticketId ?? null);
+      } else {
+        // Fallback: derive from current path
+        const tab = pathToTab(window.location.pathname);
+        if (tab) setActiveTabRaw(tab);
+        const m = window.location.pathname.match(/^\/tickets\/(\d+)$/);
+        setSelectedTicketIdRaw(m ? Number(m[1]) : null);
+      }
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   // Verify stored token on mount
   useEffect(() => {
@@ -95,8 +190,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      setSelectedTicketId(null);
-      setActiveTab("my-tickets");
+      setSelectedTicketIdRaw(null);
+      const defaultTab = getDefaultTab(data.user.role);
+      setActiveTabRaw(defaultTab);
+      syncUrl(defaultTab);
       return data.user;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to sign in";
@@ -123,8 +220,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
-      setSelectedTicketId(null);
-      setActiveTab("my-tickets");
+      setSelectedTicketIdRaw(null);
+      setActiveTabRaw("my-tickets");
+      // Redirect to /login on logout
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.history.pushState({}, "", "/login");
+      }
       setIsLoading(false);
     }
   }

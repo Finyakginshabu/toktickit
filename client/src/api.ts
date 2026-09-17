@@ -220,3 +220,55 @@ export async function getTickets(params: import("./types/index.js").GetTicketsPa
 
   return res.json();
 }
+
+// Lab 3 IT Staff Ticket Queue API
+export async function getStaffTickets(
+  params: import("./types/index.js").GetStaffTicketsParams = {}
+): Promise<import("./types/index.js").PaginatedTicketsResponse> {
+  const query = new URLSearchParams();
+
+  if (params.search && params.search.trim()) {
+    query.set("search", params.search.trim());
+  }
+  if (params.categoryId) {
+    query.set("categoryId", String(params.categoryId));
+  }
+  if (params.status) {
+    query.set("status", params.status);
+  }
+  if (params.itPriority) {
+    query.set("itPriority", params.itPriority);
+  }
+  if (params.ownerId !== undefined && params.ownerId !== "") {
+    query.set("ownerId", String(params.ownerId));
+  }
+  if (params.page) {
+    query.set("page", String(params.page));
+  }
+  if (params.pageSize) {
+    query.set("pageSize", String(params.pageSize));
+  }
+  if (params.sortBy) {
+    query.set("sortBy", params.sortBy);
+  }
+  if (params.sortOrder) {
+    query.set("sortOrder", params.sortOrder);
+  }
+
+  const res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to fetch staff tickets (Status: ${res.status})`;
+    throw new Error(message);
+  }
+
+  return res.json();
+}
+

@@ -36,7 +36,7 @@ The stakeholder requires the elimination of the development-only Requester selec
    - Shared IT Staff Ticket Queue with search, multi-criteria filtering, sorting, and pagination.
    - IT Staff Ticket Detail view with operational controls.
    - Ticket ownership claiming and reassignment.
-   - IT Priority editing (independent of Requester's initial Requested Priority).
+   - IT Priority editing (independent of Requester's initial Priority).
    - Ticket status progression following a strict transition matrix.
    - Viewing and creating Public Comments and role-restricted Internal Notes.
 6. **Administrator User Management & Operational Oversight**:
@@ -90,7 +90,7 @@ The stakeholder requires the elimination of the development-only Requester selec
 * **FR-08 (IT Staff Ticket Queue)**: The system shall provide IT Staff and Administrators with a unified Ticket Queue displaying tickets across all requesters, supporting search (summary and ticket number), filtering (category, status, priority, ownership), sorting, and pagination.
 * **FR-09 (IT Staff Ticket Detail)**: The system shall display the full ticket details to IT Staff and Administrators, including read-only requester information, editable IT Priority, editable Ticket Owner, permitted status transitions, attachments, Public Comments, and Internal Notes.
 * **FR-10 (Ticket Ownership Management)**: IT Staff and Administrators shall be able to claim unassigned tickets or reassign ticket ownership to any active IT Staff or Administrator account.
-* **FR-11 (IT Priority Control)**: IT Staff and Administrators shall be able to update the IT Priority of a ticket independently of the Requester's initial Requested Priority.
+* **FR-11 (IT Priority Control)**: IT Staff and Administrators shall be able to update the IT Priority of a ticket independently of the Requester's initial Priority.
 * **FR-12 (Ticket Status Workflow Enforcement)**: The system shall allow IT Staff and Administrators to transition ticket status strictly according to the defined lifecycle transition matrix.
 * **FR-13 (Public Comments)**: Requesters (for owned tickets), IT Staff, and Administrators shall be able to submit and read append-only Public Comments.
 * **FR-14 (Internal Notes)**: IT Staff and Administrators shall be able to submit and read append-only Internal Notes. Requesters shall be strictly prevented from viewing or creating Internal Notes.

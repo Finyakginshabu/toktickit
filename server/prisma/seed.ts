@@ -178,7 +178,11 @@ async function main() {
   // 4. Seed Demo Tickets
   const jennifer = await prisma.user.findUnique({ where: { email: "jennifer.anderson@kmutt.ac.th" } });
   const david = await prisma.user.findUnique({ where: { email: "david.lee@kmutt.ac.th" } });
+  const sarah = await prisma.user.findUnique({ where: { email: "sarah.johnson@kmutt.ac.th" } });
+  const michael = await prisma.user.findUnique({ where: { email: "michael.brown@kmutt.ac.th" } });
   const aliceStaff = await prisma.user.findUnique({ where: { email: "staff.alice@toktickit.local" } });
+  const bobStaff = await prisma.user.findUnique({ where: { email: "staff.bob@toktickit.local" } });
+  const charlieStaff = await prisma.user.findUnique({ where: { email: "staff.charlie@toktickit.local" } });
 
   const catHardware = await prisma.category.findUnique({ where: { name: "Hardware" } });
   const catNetwork = await prisma.category.findUnique({ where: { name: "Network" } });
@@ -307,6 +311,104 @@ async function main() {
     ];
 
     for (const dt of demoTicketsDavid) {
+      await prisma.ticket.upsert({
+        where: { ticketNumber: dt.ticketNumber },
+        update: {
+          summary: dt.summary,
+          description: dt.description,
+          requestedPriority: dt.requestedPriority as Priority,
+          itPriority: dt.itPriority as Priority,
+          currentStatus: dt.currentStatus as TicketStatus,
+          ticketOwnerId: dt.ticketOwnerId,
+        },
+        create: {
+          ...dt,
+          requestedPriority: dt.requestedPriority as Priority,
+          itPriority: dt.itPriority as Priority,
+          currentStatus: dt.currentStatus as TicketStatus,
+        },
+      });
+    }
+  }
+
+  if (sarah && catSoftware && catHardware && sysLeb2 && sysLaptop) {
+    const demoTicketsSarah = [
+      {
+        ticketNumber: "TKT-2026-000008",
+        requesterId: sarah.id,
+        categoryId: catSoftware.id,
+        relatedSystemId: sysLeb2.id,
+        requestedPriority: "MEDIUM" as const,
+        itPriority: "HIGH" as const,
+        currentStatus: "WAITING_FOR_REQUESTER" as const,
+        ticketOwnerId: bobStaff ? bobStaff.id : null,
+        summary: "Quiz upload failed with format error",
+        description: "LEB2 midterm quiz question bank CSV fails to parse with line ending mismatch error.",
+      },
+      {
+        ticketNumber: "TKT-2026-000009",
+        requesterId: sarah.id,
+        categoryId: catHardware.id,
+        relatedSystemId: sysLaptop.id,
+        requestedPriority: "LOW" as const,
+        itPriority: "LOW" as const,
+        currentStatus: "CLOSED" as const,
+        ticketOwnerId: charlieStaff ? charlieStaff.id : null,
+        summary: "External monitor HDMI adapter replacement",
+        description: "USB-C to HDMI adapter in lab room 302 stopped displaying external video output.",
+      },
+    ];
+
+    for (const dt of demoTicketsSarah) {
+      await prisma.ticket.upsert({
+        where: { ticketNumber: dt.ticketNumber },
+        update: {
+          summary: dt.summary,
+          description: dt.description,
+          requestedPriority: dt.requestedPriority as Priority,
+          itPriority: dt.itPriority as Priority,
+          currentStatus: dt.currentStatus as TicketStatus,
+          ticketOwnerId: dt.ticketOwnerId,
+        },
+        create: {
+          ...dt,
+          requestedPriority: dt.requestedPriority as Priority,
+          itPriority: dt.itPriority as Priority,
+          currentStatus: dt.currentStatus as TicketStatus,
+        },
+      });
+    }
+  }
+
+  if (michael && catNetwork && catAccount && sysWifi && sysEmail) {
+    const demoTicketsMichael = [
+      {
+        ticketNumber: "TKT-2026-000010",
+        requesterId: michael.id,
+        categoryId: catNetwork.id,
+        relatedSystemId: sysWifi.id,
+        requestedPriority: "HIGH" as const,
+        itPriority: "URGENT" as const,
+        currentStatus: "REOPENED" as const,
+        ticketOwnerId: aliceStaff ? aliceStaff.id : null,
+        summary: "Wi-Fi keeps dropping in library second floor",
+        description: "The KMUTT-Secure access point in zone B drops association every 5 minutes.",
+      },
+      {
+        ticketNumber: "TKT-2026-000011",
+        requesterId: michael.id,
+        categoryId: catAccount.id,
+        relatedSystemId: sysEmail.id,
+        requestedPriority: "LOW" as const,
+        itPriority: "LOW" as const,
+        currentStatus: "CANCELLED" as const,
+        ticketOwnerId: null,
+        summary: "Duplicate account request for lab assistant",
+        description: "Requested secondary email alias which is no longer needed after roster review.",
+      },
+    ];
+
+    for (const dt of demoTicketsMichael) {
       await prisma.ticket.upsert({
         where: { ticketNumber: dt.ticketNumber },
         update: {

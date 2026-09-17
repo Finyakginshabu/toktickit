@@ -1,12 +1,12 @@
 import React, { createContext, useContext } from "react";
 import { useAuth } from "./AuthContext.js";
-import { RequesterUser } from "../types/index.js";
+import { RequesterUser, AppTab } from "../types/index.js";
 
 interface RequesterContextType {
   requester: RequesterUser | null;
-  activeTab: "my-tickets" | "create-ticket" | "ticket-detail";
+  activeTab: AppTab;
   selectedTicketId: number | null;
-  setActiveTab: (tab: "my-tickets" | "create-ticket" | "ticket-detail") => void;
+  setActiveTab: (tab: AppTab) => void;
   setSelectedTicketId: (id: number | null) => void;
 }
 
