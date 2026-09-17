@@ -2,11 +2,6 @@ import { RequesterUser, Category, RelatedSystem, Ticket, Attachment } from "./ty
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-export function getAuthHeaders(): Record<string, string> {
-  const token = typeof localStorage !== "undefined" ? localStorage.getItem("toktickit_auth_token") : null;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export * from "./types/index.js";
 
 // Lab 1 System status check
@@ -69,9 +64,6 @@ export async function getRelatedSystems(): Promise<RelatedSystem[]> {
 export async function createTicket(formData: FormData): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-    },
     body: formData,
   }).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -91,11 +83,7 @@ export async function createTicket(formData: FormData): Promise<Ticket> {
 
 // Lab 2 Ticket Detail & Attachment Lifecycle APIs
 export async function getTicketDetail(ticketId: number, requesterId: number): Promise<Ticket> {
-  const res = await fetch(`${API_URL}/api/tickets/${ticketId}?requesterId=${requesterId}`, {
-    headers: {
-      ...getAuthHeaders(),
-    },
-  }).catch(() => {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}?requesterId=${requesterId}`).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
   });
 
@@ -122,9 +110,6 @@ export async function addAttachment(
 
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
-    headers: {
-      ...getAuthHeaders(),
-    },
     body: formData,
   }).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -151,7 +136,6 @@ export async function softRemoveAttachment(
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify({ requesterId, reason }),
   }).catch(() => {
@@ -204,11 +188,7 @@ export async function getTickets(params: import("./types/index.js").GetTicketsPa
     query.set("sortOrder", params.sortOrder);
   }
 
-  const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
-    headers: {
-      ...getAuthHeaders(),
-    },
-  }).catch(() => {
+  const res = await fetch(`${API_URL}/api/tickets?${query.toString()}`).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
   });
 
@@ -220,55 +200,3 @@ export async function getTickets(params: import("./types/index.js").GetTicketsPa
 
   return res.json();
 }
-
-// Lab 3 IT Staff Ticket Queue API
-export async function getStaffTickets(
-  params: import("./types/index.js").GetStaffTicketsParams = {}
-): Promise<import("./types/index.js").PaginatedTicketsResponse> {
-  const query = new URLSearchParams();
-
-  if (params.search && params.search.trim()) {
-    query.set("search", params.search.trim());
-  }
-  if (params.categoryId) {
-    query.set("categoryId", String(params.categoryId));
-  }
-  if (params.status) {
-    query.set("status", params.status);
-  }
-  if (params.itPriority) {
-    query.set("itPriority", params.itPriority);
-  }
-  if (params.ownerId !== undefined && params.ownerId !== "") {
-    query.set("ownerId", String(params.ownerId));
-  }
-  if (params.page) {
-    query.set("page", String(params.page));
-  }
-  if (params.pageSize) {
-    query.set("pageSize", String(params.pageSize));
-  }
-  if (params.sortBy) {
-    query.set("sortBy", params.sortBy);
-  }
-  if (params.sortOrder) {
-    query.set("sortOrder", params.sortOrder);
-  }
-
-  const res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, {
-    headers: {
-      ...getAuthHeaders(),
-    },
-  }).catch(() => {
-    throw new Error("Unable to connect to TokTickIT API");
-  });
-
-  if (!res.ok) {
-    const errorJson = await res.json().catch(() => null);
-    const message = errorJson?.error?.message ?? `Unable to fetch staff tickets (Status: ${res.status})`;
-    throw new Error(message);
-  }
-
-  return res.json();
-}
-

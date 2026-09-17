@@ -30,7 +30,7 @@ export default function RequesterTicketDetail() {
         setIsForbidden(true);
         setError("Access denied. You do not own this ticket.");
       } else if (err.status === 404 || err.code === "NOT_FOUND") {
-        setError("Ticket No.t found.");
+        setError("Ticket not found.");
       } else {
         setError(err.message || "Failed to load ticket details.");
       }
@@ -61,16 +61,12 @@ export default function RequesterTicketDetail() {
 
   const formatStatusBadge = (s?: TicketStatus) => {
     if (!s) return null;
-    const classMap: Partial<Record<TicketStatus, string>> = {
+    const classMap: Record<TicketStatus, string> = {
       NEW: "badge-status-new",
-      OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
-      WAITING_FOR_REQUESTER: "badge-status-waiting",
       PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
-      REOPENED: "badge-status-reopened",
-      CANCELLED: "badge-status-cancelled",
     };
     const label = s.replace("_", " ");
     return <span className={`badge ${classMap[s] || "bg-secondary"}`}>{label}</span>;
@@ -220,7 +216,7 @@ export default function RequesterTicketDetail() {
 
           {/* Priorities */}
           <div className="col-6 col-md-4">
-            <label className="form-label fw-semibold small text-muted mb-1">Priority</label>
+            <label className="form-label fw-semibold small text-muted mb-1">Requested Priority</label>
             <div className="p-2 border rounded zen-input-readonly d-flex align-items-center justify-content-between">
               <span className="small fw-semibold">{ticket.requestedPriority}</span>
               {formatPriorityBadge(ticket.requestedPriority)}

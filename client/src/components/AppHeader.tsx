@@ -1,73 +1,11 @@
 import { useState } from "react";
 import { useRequester } from "../context/RequesterContext.js";
-import { useAuth } from "../context/AuthContext.js";
-import { Role, AppTab } from "../types/index.js";
-
-export function RoleBadge({ role }: { role: Role }) {
-  if (role === "REQUESTER") {
-    return (
-      <span
-        className="badge rounded-pill px-2 py-1"
-        style={{
-          backgroundColor: "#EAF6EF",
-          color: "#006B3C",
-          border: "1px solid #006B3C",
-          fontSize: "11px",
-          fontWeight: 600,
-        }}
-      >
-        Requester
-      </span>
-    );
-  }
-  if (role === "IT_STAFF") {
-    return (
-      <span
-        className="badge rounded-pill px-2 py-1"
-        style={{
-          backgroundColor: "#0B7A46",
-          color: "#FFFFFF",
-          border: "1px solid #FFFFFF",
-          fontSize: "11px",
-          fontWeight: 600,
-        }}
-      >
-        IT Staff
-      </span>
-    );
-  }
-  return (
-    <span
-      className="badge rounded-pill px-2 py-1"
-      style={{
-        backgroundColor: "#2D3748",
-        color: "#FFFFFF",
-        border: "1px solid #D69E2E",
-        fontSize: "11px",
-        fontWeight: 600,
-      }}
-    >
-      Administrator
-    </span>
-  );
-}
 
 export default function AppHeader() {
-  const { activeTab, setActiveTab } = useRequester();
-  let authUser = null;
-  let authLogout = async () => {};
-
-  try {
-    const auth = useAuth();
-    authUser = auth.user;
-    authLogout = auth.logout;
-  } catch {
-    // AuthProvider might not be present in isolated component unit tests
-  }
-
+  const { requester, openSelector, activeTab, setActiveTab } = useRequester();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleNavClick = (tab: AppTab) => {
+  const handleNavClick = (tab: "my-tickets" | "create-ticket") => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
   };
@@ -83,81 +21,51 @@ export default function AppHeader() {
 
         {/* Desktop Navigation Tabs */}
         <nav className="d-none d-md-flex align-items-center gap-2 flex-grow-1 ms-3">
-          {(!authUser || authUser.role === "REQUESTER") && (
-            <>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
-                onClick={() => handleNavClick("my-tickets")}
-              >
-                <span className="material-symbols-outlined fs-6 me-1">assignment</span>
-                My Tickets
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
-                onClick={() => handleNavClick("create-ticket")}
-              >
-                <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
-                Create Ticket
-              </button>
-            </>
-          )}
-
-          {authUser?.role === "IT_STAFF" && (
-            <>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
-                onClick={() => handleNavClick("ticket-queue")}
-              >
-                <span className="material-symbols-outlined fs-6 me-1">confirmation_number</span>
-                Ticket Queue
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
-                onClick={() => handleNavClick("create-ticket")}
-              >
-                <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
-                Create Ticket
-              </button>
-            </>
-          )}
-
-          {authUser?.role === "ADMINISTRATOR" && (
-            <button
-              type="button"
-              className={`btn btn-sm ${activeTab === "user-management" ? "zen-nav-link active" : "zen-nav-link"}`}
-              onClick={() => handleNavClick("user-management")}
-            >
-              <span className="material-symbols-outlined fs-6 me-1">manage_accounts</span>
-              User Management
-            </button>
-          )}
+          <button
+            type="button"
+            className={`btn btn-sm ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
+            onClick={() => handleNavClick("my-tickets")}
+          >
+            <span className="material-symbols-outlined fs-6 me-1">assignment</span>
+            My Tickets
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${activeTab === "create-ticket" ? "zen-nav-link active" : "zen-nav-link"}`}
+            onClick={() => handleNavClick("create-ticket")}
+          >
+            <span className="material-symbols-outlined fs-6 me-1">add_circle</span>
+            Create Ticket
+          </button>
         </nav>
 
-        {/* Desktop Identity & Session */}
+        {/* Desktop Identity & Change Requester */}
         <div className="d-none d-md-flex align-items-center gap-3">
-          {authUser && (
-            <div className="d-flex align-items-center gap-3">
+          {requester ? (
+            <div className="d-flex align-items-center gap-2">
               <div className="text-end lh-sm">
-                <div className="d-flex align-items-center gap-2 justify-content-end">
-                  <span className="fw-semibold text-white">{authUser.name}</span>
-                  <RoleBadge role={authUser.role} />
-                </div>
-                <small className="text-white-50">{authUser.email}</small>
+                <div className="fw-semibold text-white">{requester.name}</div>
+                {requester.department && (
+                  <small className="text-white-50">{requester.department}</small>
+                )}
               </div>
               <button
                 type="button"
-                className="btn btn-sm btn-outline-light d-flex align-items-center gap-1"
-                onClick={authLogout}
-                aria-label="Logout"
+                className="btn btn-sm btn-outline-light ms-1"
+                onClick={openSelector}
+                aria-label="Change Requester"
               >
-                <span className="material-symbols-outlined fs-6">logout</span>
-                Logout
+                Change Requester
               </button>
             </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-sm btn-light text-success fw-bold"
+              onClick={openSelector}
+            >
+              Select Requester
+            </button>
           )}
         </div>
 
@@ -181,83 +89,55 @@ export default function AppHeader() {
       {isMobileMenuOpen && (
         <div className="zen-mobile-menu d-md-none mt-2 pt-2">
           <div className="d-flex flex-column gap-2">
-            {(!authUser || authUser.role === "REQUESTER") && (
-              <>
-                <button
-                  type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "my-tickets" ? "active" : ""}`}
-                  onClick={() => handleNavClick("my-tickets")}
-                >
-                  <span className="material-symbols-outlined me-2">assignment</span>
-                  My Tickets
-                </button>
-                <button
-                  type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
-                  onClick={() => handleNavClick("create-ticket")}
-                >
-                  <span className="material-symbols-outlined me-2">add_circle</span>
-                  Create Ticket
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              className={`zen-mobile-nav-link ${activeTab === "my-tickets" ? "active" : ""}`}
+              onClick={() => handleNavClick("my-tickets")}
+            >
+              <span className="material-symbols-outlined me-2">assignment</span>
+              My Tickets
+            </button>
+            <button
+              type="button"
+              className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
+              onClick={() => handleNavClick("create-ticket")}
+            >
+              <span className="material-symbols-outlined me-2">add_circle</span>
+              Create Ticket
+            </button>
 
-            {authUser?.role === "IT_STAFF" && (
-              <>
-                <button
-                  type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "ticket-queue" ? "active" : ""}`}
-                  onClick={() => handleNavClick("ticket-queue")}
-                >
-                  <span className="material-symbols-outlined me-2">confirmation_number</span>
-                  Ticket Queue
-                </button>
-                <button
-                  type="button"
-                  className={`zen-mobile-nav-link ${activeTab === "create-ticket" ? "active" : ""}`}
-                  onClick={() => handleNavClick("create-ticket")}
-                >
-                  <span className="material-symbols-outlined me-2">add_circle</span>
-                  Create Ticket
-                </button>
-              </>
-            )}
-
-            {authUser?.role === "ADMINISTRATOR" && (
-              <button
-                type="button"
-                className={`zen-mobile-nav-link ${activeTab === "user-management" ? "active" : ""}`}
-                onClick={() => handleNavClick("user-management")}
-              >
-                <span className="material-symbols-outlined me-2">manage_accounts</span>
-                User Management
-              </button>
-            )}
-
-            {/* User Profile Box in Mobile Drawer */}
-            {authUser && (
-              <div className="zen-mobile-requester-box mt-2">
+            {/* Requester Profile Box in Mobile Drawer */}
+            <div className="zen-mobile-requester-box mt-2">
+              {requester ? (
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
-                    <div className="d-flex align-items-center gap-2 mb-1">
-                      <span className="fw-semibold text-white">{authUser.name}</span>
-                      <RoleBadge role={authUser.role} />
-                    </div>
-                    <small className="text-white-50">{authUser.email}</small>
+                    <div className="fw-semibold text-white">{requester.name}</div>
+                    <small className="text-white-50">{requester.department || requester.email}</small>
                   </div>
                   <button
                     type="button"
                     className="btn btn-sm btn-outline-light"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      authLogout();
+                      openSelector();
                     }}
                   >
-                    Logout
+                    Change
                   </button>
                 </div>
-              </div>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-light text-success fw-bold w-100"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    openSelector();
+                  }}
+                >
+                  Select Requester
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

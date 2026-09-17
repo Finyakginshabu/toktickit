@@ -266,59 +266,31 @@ body {
 
 /* Status Badges (Zen Green Spec) */
 .badge-status-new {
+  background-color: #EAF6EF;
+  color: #006B3C;
+  border: 1px solid #B8E2C8;
+  font-weight: 600;
+}
+
+.badge-status-in-progress {
   background-color: #EBF8FF;
   color: #2B6CB0;
   border: 1px solid #BEE3F8;
   font-weight: 600;
 }
 
-.badge-status-open {
-  background-color: #E6FFFA;
-  color: #234E52;
-  border: 1px solid #B2F5EA;
-  font-weight: 600;
-}
-
-.badge-status-in-progress {
-  background-color: #FEEBC8;
-  color: #7B341E;
-  border: 1px solid #FBD38D;
-  font-weight: 600;
-}
-
-.badge-status-waiting,
 .badge-status-pending {
-  background-color: #FAF5FF;
-  color: #553C9A;
-  border: 1px solid #E9D8FD;
+  background-color: #FEFCBF;
+  color: #975A16;
+  border: 1px solid #FAF089;
   font-weight: 600;
 }
 
-.badge-status-resolved {
-  background-color: #C6F6D5;
-  color: #22543D;
-  border: 1px solid #9AE6B4;
-  font-weight: 600;
-}
-
+.badge-status-resolved,
 .badge-status-closed {
   background-color: #EDF2F7;
   color: #4A5568;
-  border: 1px solid #CBD5E0;
-  font-weight: 600;
-}
-
-.badge-status-reopened {
-  background-color: #FFEDD5;
-  color: #9A3412;
-  border: 1px solid #FED7AA;
-  font-weight: 600;
-}
-
-.badge-status-cancelled {
-  background-color: #FED7D7;
-  color: #9B2C2C;
-  border: 1px solid #FEB2B2;
+  border: 1px solid #E2E8F0;
   font-weight: 600;
 }
 
@@ -330,8 +302,8 @@ body {
 }
 
 .badge-priority-medium {
-  background-color: #FEFCBF;
-  color: #744210;
+  background-color: #E6FFFA;
+  color: #234E52;
   font-weight: 600;
 }
 

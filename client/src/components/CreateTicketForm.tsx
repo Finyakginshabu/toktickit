@@ -291,18 +291,19 @@ export default function CreateTicketForm() {
             </div>
           </div>
 
-          {/* Row 2: Priority */}
+          {/* Row 2: Requested Priority */}
           <div className="mb-3">
             <label htmlFor="ticket-priority" className="form-label fw-semibold">
-              Priority <span className="text-danger">*</span>
+              Requested Priority <span className="text-danger">*</span>
             </label>
             <div className="row g-2">
               {(["LOW", "MEDIUM", "HIGH", "URGENT"] as Priority[]).map((p) => (
                 <div key={p} className="col-6 col-md-3">
                   <button
                     type="button"
-                    className={`btn w-100 text-center py-2 ${requestedPriority === p ? "btn-zen-primary" : "btn-outline-secondary"
-                      }`}
+                    className={`btn w-100 text-center py-2 ${
+                      requestedPriority === p ? "btn-zen-primary" : "btn-outline-secondary"
+                    }`}
                     onClick={() => setRequestedPriority(p)}
                     disabled={isSubmitting}
                   >
@@ -366,10 +367,11 @@ export default function CreateTicketForm() {
             </label>
 
             <div
-              className={`border border-2 border-dashed rounded p-3 text-center transition-all ${isDragging
+              className={`border border-2 border-dashed rounded p-3 text-center transition-all ${
+                isDragging
                   ? "border-success bg-white shadow-sm"
                   : "bg-light"
-                }`}
+              }`}
               style={{
                 borderColor: isDragging ? "var(--color-primary-green)" : "#D8E2DC",
                 backgroundColor: isDragging ? "var(--color-pale-green)" : "#F8F9FA",

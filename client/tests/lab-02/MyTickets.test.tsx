@@ -70,23 +70,55 @@ describe("Lab 2 My Tickets Suite (client/tests/lab-02/MyTickets.test.tsx)", () =
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
-    localStorage.setItem("toktickit_auth_token", "mock-valid-token");
-    localStorage.setItem(
-      "toktickit_auth_user",
-      JSON.stringify({
-        id: 1,
-        name: "Jennifer Anderson",
-        email: "jennifer.anderson@kmutt.ac.th",
-        role: "REQUESTER",
-        mustChangePassword: false,
-        department: "Computer Engineering",
-      })
-    );
     vi.spyOn(api, "getRequesters").mockResolvedValue(mockActiveRequesters);
     vi.spyOn(api, "getCategories").mockResolvedValue(mockCategories);
     vi.spyOn(api, "getRelatedSystems").mockResolvedValue(mockRelatedSystems);
   });
 
+  // UI-02: Requester switching updates context & reloads tickets
+  it("switching requester via Change Requester updates header and reloads ticket list (UI-02, AC-09, FR-02)", async () => {
+    localStorage.setItem("toktickit_dev_requester_id", "1");
+
+    const jenniferTickets = makePageResponse([
+      makeTicket({ id: 1, ticketNumber: "TKT-2026-000001", summary: "Jennifer's laptop ticket" }),
+    ]);
+    const davidTickets = makePageResponse([
+      makeTicket({ id: 99, ticketNumber: "TKT-2026-000099", summary: "David's network ticket", requesterId: 2 }),
+    ]);
+
+    const getTicketsSpy = vi.spyOn(api, "getTickets").mockImplementation(async (params) => {
+      if (params.requesterId === 2) {
+        return davidTickets;
+      }
+      return jenniferTickets;
+    });
+
+    render(<App />);
+
+    // Wait for Jennifer's ticket to be visible
+    expect((await screen.findAllByText("Jennifer's laptop ticket")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("TKT-2026-000001").length).toBeGreaterThan(0);
+
+    // Click "Change Requester" button
+    const changeBtn = screen.getByRole("button", { name: /Change Requester/i });
+    fireEvent.click(changeBtn);
+
+    // Modal appears
+    expect(await screen.findByText(/Select Development Requester/i)).toBeInTheDocument();
+
+    // Select David Lee (id 2)
+    const dropdown = document.getElementById("requester-dropdown") as HTMLSelectElement;
+    fireEvent.change(dropdown, { target: { value: "2" } });
+
+    const continueBtn = screen.getByRole("button", { name: /Continue/i });
+    fireEvent.click(continueBtn);
+
+    // Header updates and David's tickets are loaded
+    expect((await screen.findAllByText("David's network ticket")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("TKT-2026-000099").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Jennifer's laptop ticket")).not.toBeInTheDocument();
+    expect(getTicketsSpy).toHaveBeenCalledWith(expect.objectContaining({ requesterId: 2 }));
+  });
 
   // UI-07a: Table row rendering
   it("renders ticket rows with correct ticket number, summary, status, and priority (UI-07, AC-10)", async () => {

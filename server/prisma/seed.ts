@@ -1,10 +1,9 @@
 import fs from "fs";
 import path from "path";
-import bcrypt from "bcryptjs";
-import { Priority, Role, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../src/prisma.js";
 
-// Lab 3 Seed Data: Categories, Related Systems, Multi-Role Users, Tickets, and Attachments
+// Lab 2 Seed Data: Categories, Related Systems, and Development Requesters
+// Requirement: running the seed twice must NOT create duplicates (idempotent via upsert).
 async function main() {
   const prisma = getPrisma();
 
@@ -45,144 +44,61 @@ async function main() {
   }
   console.log(`✓ Seeded ${relatedSystems.length} related systems successfully.`);
 
-  // 3. Seed Users across 3 Roles with Hashed Passwords
-  const salt = await bcrypt.genSalt(10);
-  const defaultUserHash = await bcrypt.hash("Password123!", salt);
-  const adminHash = await bcrypt.hash("AdminPass123!", salt);
-  const initialHash = await bcrypt.hash("InitialPassword123!", salt);
-
-  const users = [
-    // 4 Active Requesters
+  // 3. Seed Development Requesters (4 active, 1 inactive)
+  const requesters = [
     {
-      email: "jennifer.anderson@kmutt.ac.th",
       name: "Jennifer Anderson",
-      role: "REQUESTER" as const,
-      passwordHash: defaultUserHash,
+      email: "jennifer.anderson@kmutt.ac.th",
       department: "Computer Engineering",
       isActive: true,
-      mustChangePassword: false,
     },
     {
-      email: "david.lee@kmutt.ac.th",
       name: "David Lee",
-      role: "REQUESTER" as const,
-      passwordHash: defaultUserHash,
+      email: "david.lee@kmutt.ac.th",
       department: "Information Technology",
       isActive: true,
-      mustChangePassword: false,
     },
     {
-      email: "sarah.johnson@kmutt.ac.th",
       name: "Sarah Johnson",
-      role: "REQUESTER" as const,
-      passwordHash: defaultUserHash,
+      email: "sarah.johnson@kmutt.ac.th",
       department: "Digital Media",
       isActive: true,
-      mustChangePassword: false,
     },
     {
-      email: "michael.brown@kmutt.ac.th",
       name: "Michael Brown",
-      role: "REQUESTER" as const,
-      passwordHash: defaultUserHash,
+      email: "michael.brown@kmutt.ac.th",
       department: "Electrical Engineering",
       isActive: true,
-      mustChangePassword: false,
     },
-    // 1 Inactive Requester
     {
-      email: "alex.inactive@kmutt.ac.th",
       name: "Alex Inactive",
-      role: "REQUESTER" as const,
-      passwordHash: defaultUserHash,
+      email: "alex.inactive@kmutt.ac.th",
       department: "General Studies",
       isActive: false,
-      mustChangePassword: false,
-    },
-    // 3 Active IT Staff
-    {
-      email: "staff.alice@toktickit.local",
-      name: "Alice Support",
-      role: "IT_STAFF" as const,
-      passwordHash: defaultUserHash,
-      department: "IT Operations",
-      isActive: true,
-      mustChangePassword: false,
-    },
-    {
-      email: "staff.bob@toktickit.local",
-      name: "Bob Technician",
-      role: "IT_STAFF" as const,
-      passwordHash: defaultUserHash,
-      department: "Network Infrastructure",
-      isActive: true,
-      mustChangePassword: false,
-    },
-    {
-      email: "staff.charlie@toktickit.local",
-      name: "Charlie Engineer",
-      role: "IT_STAFF" as const,
-      passwordHash: defaultUserHash,
-      department: "Desktop Support",
-      isActive: true,
-      mustChangePassword: false,
-    },
-    // 1 Inactive IT Staff
-    {
-      email: "staff.inactive@toktickit.local",
-      name: "Inactive Staff",
-      role: "IT_STAFF" as const,
-      passwordHash: defaultUserHash,
-      department: "IT Operations",
-      isActive: false,
-      mustChangePassword: false,
-    },
-    // 1 Active Administrator
-    {
-      email: "admin@toktickit.local",
-      name: "System Administrator",
-      role: "ADMINISTRATOR" as const,
-      passwordHash: adminHash,
-      department: "IT Administration",
-      isActive: true,
-      mustChangePassword: false,
-    },
-    // 1 First-Login Test User (mustChangePassword = true)
-    {
-      email: "firstlogin@toktickit.local",
-      name: "New Employee",
-      role: "REQUESTER" as const,
-      passwordHash: initialHash,
-      department: "Computer Engineering",
-      isActive: true,
-      mustChangePassword: true,
     },
   ];
 
-  for (const u of users) {
-    await prisma.user.upsert({
-      where: { email: u.email },
+  for (const req of requesters) {
+    await prisma.requesterUser.upsert({
+      where: { email: req.email },
       update: {
-        name: u.name,
-        role: u.role as Role,
-        passwordHash: u.passwordHash,
-        department: u.department,
-        isActive: u.isActive,
-        mustChangePassword: u.mustChangePassword,
+        name: req.name,
+        department: req.department,
+        isActive: req.isActive,
       },
-      create: { ...u, role: u.role as Role },
+      create: {
+        name: req.name,
+        email: req.email,
+        department: req.department,
+        isActive: req.isActive,
+      },
     });
   }
-  console.log(`✓ Seeded ${users.length} users across Requester, IT Staff, and Administrator roles successfully.`);
+  console.log(`✓ Seeded ${requesters.length} development requesters (4 active, 1 inactive) successfully.`);
 
-  // 4. Seed Demo Tickets
-  const jennifer = await prisma.user.findUnique({ where: { email: "jennifer.anderson@kmutt.ac.th" } });
-  const david = await prisma.user.findUnique({ where: { email: "david.lee@kmutt.ac.th" } });
-  const sarah = await prisma.user.findUnique({ where: { email: "sarah.johnson@kmutt.ac.th" } });
-  const michael = await prisma.user.findUnique({ where: { email: "michael.brown@kmutt.ac.th" } });
-  const aliceStaff = await prisma.user.findUnique({ where: { email: "staff.alice@toktickit.local" } });
-  const bobStaff = await prisma.user.findUnique({ where: { email: "staff.bob@toktickit.local" } });
-  const charlieStaff = await prisma.user.findUnique({ where: { email: "staff.charlie@toktickit.local" } });
+  // 4. Seed Demo Tickets for Requester Context Verification
+  const jennifer = await prisma.requesterUser.findUnique({ where: { email: "jennifer.anderson@kmutt.ac.th" } });
+  const david = await prisma.requesterUser.findUnique({ where: { email: "david.lee@kmutt.ac.th" } });
 
   const catHardware = await prisma.category.findUnique({ where: { name: "Hardware" } });
   const catNetwork = await prisma.category.findUnique({ where: { name: "Network" } });
@@ -207,7 +123,6 @@ async function main() {
         requestedPriority: "HIGH" as const,
         itPriority: "HIGH" as const,
         currentStatus: "NEW" as const,
-        ticketOwnerId: null,
         summary: "Laptop battery drains quickly during video calls",
         description: "The laptop battery drops from 100% to under 20% in less than 45 minutes when attending Microsoft Teams or Zoom meetings.",
       },
@@ -218,8 +133,7 @@ async function main() {
         relatedSystemId: sysWifi.id,
         requestedPriority: "MEDIUM" as const,
         itPriority: "MEDIUM" as const,
-        currentStatus: "OPEN" as const,
-        ticketOwnerId: aliceStaff ? aliceStaff.id : null,
+        currentStatus: "NEW" as const,
         summary: "Cannot connect to Campus Wi-Fi in building 3",
         description: "Experiencing continuous authentication loop when attempting to log into KMUTT-Secure Wi-Fi on the 4th floor.",
       },
@@ -231,7 +145,6 @@ async function main() {
         requestedPriority: "LOW" as const,
         itPriority: "LOW" as const,
         currentStatus: "NEW" as const,
-        ticketOwnerId: null,
         summary: "Need access to LEB2 course engineering portal",
         description: "Requesting teacher assistant enrollment permissions for CPE334 semester 1 section.",
       },
@@ -243,7 +156,6 @@ async function main() {
         requestedPriority: "URGENT" as const,
         itPriority: "URGENT" as const,
         currentStatus: "IN_PROGRESS" as const,
-        ticketOwnerId: aliceStaff ? aliceStaff.id : null,
         summary: "VPN client disconnects every 10 minutes",
         description: "The corporate VPN drops connection every 10 minutes, disrupting remote laboratory work.",
       },
@@ -255,7 +167,6 @@ async function main() {
         requestedPriority: "LOW" as const,
         itPriority: "LOW" as const,
         currentStatus: "RESOLVED" as const,
-        ticketOwnerId: aliceStaff ? aliceStaff.id : null,
         summary: "Office printer paper jam in floor 4 lab",
         description: "Printer tray 2 indicates paper jam error even after clearing all visible sheets.",
       },
@@ -267,17 +178,11 @@ async function main() {
         update: {
           summary: dt.summary,
           description: dt.description,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-          ticketOwnerId: dt.ticketOwnerId,
+          requestedPriority: dt.requestedPriority,
+          itPriority: dt.itPriority,
+          currentStatus: dt.currentStatus,
         },
-        create: {
-          ...dt,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-        },
+        create: dt,
       });
     }
   }
@@ -292,7 +197,6 @@ async function main() {
         requestedPriority: "HIGH" as const,
         itPriority: "HIGH" as const,
         currentStatus: "NEW" as const,
-        ticketOwnerId: null,
         summary: "David's Email sync error on mobile Outlook",
         description: "Office 365 Outlook on iOS fails with exchange sync error 80090308.",
       },
@@ -304,7 +208,6 @@ async function main() {
         requestedPriority: "URGENT" as const,
         itPriority: "URGENT" as const,
         currentStatus: "NEW" as const,
-        ticketOwnerId: null,
         summary: "Grade Submission portal timeout during batch upload",
         description: "Submitting mid-term score CSV triggers 504 Gateway Timeout error for large courses.",
       },
@@ -316,120 +219,16 @@ async function main() {
         update: {
           summary: dt.summary,
           description: dt.description,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-          ticketOwnerId: dt.ticketOwnerId,
+          requestedPriority: dt.requestedPriority,
+          itPriority: dt.itPriority,
+          currentStatus: dt.currentStatus,
         },
-        create: {
-          ...dt,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-        },
+        create: dt,
       });
     }
   }
 
-  if (sarah && catSoftware && catHardware && sysLeb2 && sysLaptop) {
-    const demoTicketsSarah = [
-      {
-        ticketNumber: "TKT-2026-000008",
-        requesterId: sarah.id,
-        categoryId: catSoftware.id,
-        relatedSystemId: sysLeb2.id,
-        requestedPriority: "MEDIUM" as const,
-        itPriority: "HIGH" as const,
-        currentStatus: "WAITING_FOR_REQUESTER" as const,
-        ticketOwnerId: bobStaff ? bobStaff.id : null,
-        summary: "Quiz upload failed with format error",
-        description: "LEB2 midterm quiz question bank CSV fails to parse with line ending mismatch error.",
-      },
-      {
-        ticketNumber: "TKT-2026-000009",
-        requesterId: sarah.id,
-        categoryId: catHardware.id,
-        relatedSystemId: sysLaptop.id,
-        requestedPriority: "LOW" as const,
-        itPriority: "LOW" as const,
-        currentStatus: "CLOSED" as const,
-        ticketOwnerId: charlieStaff ? charlieStaff.id : null,
-        summary: "External monitor HDMI adapter replacement",
-        description: "USB-C to HDMI adapter in lab room 302 stopped displaying external video output.",
-      },
-    ];
-
-    for (const dt of demoTicketsSarah) {
-      await prisma.ticket.upsert({
-        where: { ticketNumber: dt.ticketNumber },
-        update: {
-          summary: dt.summary,
-          description: dt.description,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-          ticketOwnerId: dt.ticketOwnerId,
-        },
-        create: {
-          ...dt,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-        },
-      });
-    }
-  }
-
-  if (michael && catNetwork && catAccount && sysWifi && sysEmail) {
-    const demoTicketsMichael = [
-      {
-        ticketNumber: "TKT-2026-000010",
-        requesterId: michael.id,
-        categoryId: catNetwork.id,
-        relatedSystemId: sysWifi.id,
-        requestedPriority: "HIGH" as const,
-        itPriority: "URGENT" as const,
-        currentStatus: "REOPENED" as const,
-        ticketOwnerId: aliceStaff ? aliceStaff.id : null,
-        summary: "Wi-Fi keeps dropping in library second floor",
-        description: "The KMUTT-Secure access point in zone B drops association every 5 minutes.",
-      },
-      {
-        ticketNumber: "TKT-2026-000011",
-        requesterId: michael.id,
-        categoryId: catAccount.id,
-        relatedSystemId: sysEmail.id,
-        requestedPriority: "LOW" as const,
-        itPriority: "LOW" as const,
-        currentStatus: "CANCELLED" as const,
-        ticketOwnerId: null,
-        summary: "Duplicate account request for lab assistant",
-        description: "Requested secondary email alias which is no longer needed after roster review.",
-      },
-    ];
-
-    for (const dt of demoTicketsMichael) {
-      await prisma.ticket.upsert({
-        where: { ticketNumber: dt.ticketNumber },
-        update: {
-          summary: dt.summary,
-          description: dt.description,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-          ticketOwnerId: dt.ticketOwnerId,
-        },
-        create: {
-          ...dt,
-          requestedPriority: dt.requestedPriority as Priority,
-          itPriority: dt.itPriority as Priority,
-          currentStatus: dt.currentStatus as TicketStatus,
-        },
-      });
-    }
-  }
-
-  // 5. Seed Demo Attachments
+  // 5. Seed Demo Attachments for TKT-2026-000001
   const tkt1 = await prisma.ticket.findUnique({ where: { ticketNumber: "TKT-2026-000001" } });
   if (tkt1) {
     const uploadDir = path.join(process.cwd(), "uploads", "attachments");
@@ -484,7 +283,7 @@ async function main() {
     }
   }
 
-  console.log(`✓ Seeded demo tickets and attachments successfully.`);
+  console.log(`✓ Seeded demo tickets and attachments for Jennifer Anderson and David Lee successfully.`);
 }
 
 main()

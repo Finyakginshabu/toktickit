@@ -1,18 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
-import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import AppHeader from "./components/AppHeader.js";
+import RequesterSelectorModal from "./components/RequesterSelectorModal.js";
 import CreateTicketForm from "./components/CreateTicketForm.js";
 import MyTicketsList from "./components/MyTicketsList.js";
 import RequesterTicketDetail from "./components/RequesterTicketDetail.js";
-import StaffTicketQueue from "./components/StaffTicketQueue.js";
-import { Login } from "./components/Login.js";
-import { ChangePassword } from "./components/ChangePassword.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
 
-export function SystemHealthWidget() {
+function SystemHealthWidget() {
   const [statusState, setStatusState] = useState<SystemStatusState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMsg, setErrorMsg] = useState<string>("");
@@ -84,81 +81,30 @@ function MainContent() {
 
   return (
     <div className="container py-4">
-      {activeTab === "my-tickets" && <MyTicketsList />}
-
-      {activeTab === "ticket-queue" && <StaffTicketQueue />}
+      {activeTab === "my-tickets" && (
+        <>
+          <MyTicketsList />
+          <SystemHealthWidget />
+        </>
+      )}
 
       {activeTab === "create-ticket" && <CreateTicketForm />}
 
       {activeTab === "ticket-detail" && <RequesterTicketDetail />}
-
-      {activeTab === "user-management" && (
-        <div className="zen-card p-4 text-center py-5">
-          <span className="material-symbols-outlined fs-1 text-muted mb-2">manage_accounts</span>
-          <h2 className="h5 fw-semibold mb-1">User Management</h2>
-          <p className="text-muted small mb-0">
-            Administrator user account management and initial password resets.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AppLayout() {
-  const { user, isLoading: authLoading } = useAuth();
-
-  // Sync URL for auth-state-driven redirects (login / change-password)
-  useEffect(() => {
-    const isTest =
-      (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") ||
-      (typeof process !== "undefined" && process?.env?.NODE_ENV === "test");
-    if (isTest) return;
-
-    if (!authLoading) {
-      if (!user && window.location.pathname !== "/login") {
-        window.history.pushState({}, "", "/login");
-      } else if (user?.mustChangePassword && window.location.pathname !== "/change-password") {
-        window.history.pushState({}, "", "/change-password");
-      }
-    }
-  }, [user, authLoading]);
-
-  if (authLoading) {
-    return (
-      <div className="d-flex align-items-center justify-content-center min-vh-100">
-        <div className="spinner-border text-success" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Mandatory password change check (BR-02)
-  if (user && user.mustChangePassword) {
-    return <ChangePassword />;
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
-  return (
-    <div className="min-vh-100 d-flex flex-column">
-      <AppHeader />
-      <main className="flex-grow-1">
-        <MainContent />
-      </main>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <RequesterProvider>
-        <AppLayout />
-      </RequesterProvider>
-    </AuthProvider>
+    <RequesterProvider>
+      <div className="min-vh-100 d-flex flex-column">
+        <AppHeader />
+        <main className="flex-grow-1">
+          <MainContent />
+        </main>
+        <RequesterSelectorModal />
+      </div>
+    </RequesterProvider>
   );
 }

@@ -83,18 +83,6 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
-    localStorage.setItem("toktickit_auth_token", "mock-valid-token");
-    localStorage.setItem(
-      "toktickit_auth_user",
-      JSON.stringify({
-        id: 1,
-        name: "Jennifer Anderson",
-        email: "jennifer.anderson@kmutt.ac.th",
-        role: "REQUESTER",
-        mustChangePassword: false,
-        department: "Computer Engineering",
-      })
-    );
     vi.spyOn(api, "getRequesters").mockResolvedValue(mockActiveRequesters);
     vi.spyOn(api, "getCategories").mockResolvedValue(mockCategories);
     vi.spyOn(api, "getRelatedSystems").mockResolvedValue(mockRelatedSystems);

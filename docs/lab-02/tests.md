@@ -15,7 +15,7 @@ Testing for Lab 2 follows a multi-layered verification strategy combining automa
 | **API-01** | API | AC-01, FR-04, BR-01 | Create valid ticket with all required fields | `201 Created`, unique `TKT-YYYY-XXXXXX` generated, status `NEW` | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
 | **API-02** | API | AC-02, BR-06 | Create ticket with missing summary or short description | `400 Bad Request` with field validation errors | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
 | **API-03** | API | AC-03, BR-09 | Create ticket with 2 valid attachments (PNG, PDF) | `201 Created`, attachments persisted on disk & DB | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
-| **API-04** | API | AC-04, BR-09 | Create ticket with attachment exceeding 5 MB or 0-byte | `413 Payload Too Large` or `400 Bad Request`, Ticket No.t created | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
+| **API-04** | API | AC-04, BR-09 | Create ticket with attachment exceeding 5 MB or 0-byte | `413 Payload Too Large` or `400 Bad Request`, ticket not created | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
 | **API-05** | API | AC-08, BR-04 | Retrieve Requesters endpoint | `200 OK`, returns only active requesters (`isActive = true`) | `server/tests/lab-02/create-ticket.api.test.ts` | Passed |
 | **API-06** | API | AC-10, BR-05 | Retrieve My Tickets for Requester A | `200 OK`, returns only tickets where `requesterId == A` | `server/tests/lab-02/my-tickets.api.test.ts` | Passed |
 | **API-07** | API | AC-11, FR-09 | My Tickets search query and category filter | `200 OK`, returns filtered subset matching keyword & category | `server/tests/lab-02/my-tickets.api.test.ts` | Passed |

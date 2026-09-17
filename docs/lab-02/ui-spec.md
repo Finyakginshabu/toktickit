@@ -107,7 +107,7 @@ Badges use pill styling (`border-radius: 9999px`, `padding: 4px 10px`, `font-siz
 * **Header**: "Create IT Support Ticket" with descriptive subtitle.
 * **Form Grid (Desktop)**:
   * Top Row: Category dropdown (50% width) + Related System dropdown (50% width).
-  * Second Row: Priority radio/dropdown (50% width) + System Status notice (50% width).
+  * Second Row: Requested Priority radio/dropdown (50% width) + System Status notice (50% width).
   * Third Row: Ticket Summary input (100% width, counter: "0 / 100").
   * Fourth Row: Detailed Description textarea (100% width, counter: "0 / 2000").
   * Fifth Row: Attachment Dropzone / File Picker (supports drag-and-drop, lists selected files with remove buttons, highlights errors for files >5MB or invalid types).
@@ -116,11 +116,11 @@ Badges use pill styling (`border-radius: 9999px`, `padding: 4px 10px`, `font-siz
 ### 3.4. My Tickets Screen Layout
 * **Toolbar**:
   * Search input with search icon (searches Ticket Number and Summary).
-  * Dropdown filters: Category (`All Categories`, `Hardware`, ...), Priority, and Status.
+  * Dropdown filters: Category (`All Categories`, `Hardware`, ...), Requested Priority, and Status.
   * "Clear Filters" link/button.
   * "+ Create Ticket" shortcut button.
 * **Table (Desktop ≥ 992px)**:
-  * Columns: `Ticket No.`, `Created`, `Summary`, `Category`, `Priority`, `IT Priority`, `Current Status`, `Actions`.
+  * Columns: `Ticket No.`, `Created Date`, `Summary`, `Category`, `Requested Priority`, `IT Priority`, `Current Status`, `Actions`.
   * Hover rows with subtle `#F5F7F6` tint; row click navigates to Ticket Detail.
 * **Card List (Mobile < 768px)**:
   * Stacked cards displaying Ticket Number header with status pill, summary, category/system tag, and relative timestamp.
@@ -132,7 +132,7 @@ Badges use pill styling (`border-radius: 9999px`, `padding: 4px 10px`, `font-siz
 ### 3.5. Requester Ticket Detail Screen Layout
 * **Back Link**: "← Back to My Tickets" breadcrumb link.
 * **Ticket Overview Card**:
-  * Two-column grid with labeled read-only fields (Ticket Number, Requester, Category, Related System, Priority, IT Priority, Status, Created, Last Updated).
+  * Two-column grid with labeled read-only fields (Ticket Number, Requester, Category, Related System, Requested Priority, IT Priority, Status, Created Date, Last Updated).
   * Full-width Summary and Description containers with soft read-only styling.
 * **Attachments Card**:
   * Attachment counter badge ("Attachments (X/5)").
@@ -176,18 +176,3 @@ Screenshots will be captured and placed into `artifacts/lab-02/screenshots/`:
   - `03-ticket-detail-soft-remove-dialog.png` (Soft-removal confirmation modal with reason input)
   - `04-ticket-detail-removed-attachment-blocked.png` (Removed attachment badge with download blocked)
   - `05-ticket-detail-cross-requester-rejected.png` (Access Denied / 403 error on unauthorized access)
-
----
-
-## 6. Standard Page URLs
-
-> **Dev server**: `http://localhost:5173` (Vite default). All routes are hash-based (`/#/...`) for this single-page app.
-
-| Page / Screen | URL |
-| :--- | :--- |
-| **Requester Selector (Dev Login)** | `http://localhost:5173/` |
-| **Create Ticket** | `http://localhost:5173/#/create-ticket` |
-| **My Tickets List** | `http://localhost:5173/#/my-tickets` |
-| **Ticket Detail** | `http://localhost:5173/#/tickets/:id` |
-
-> **Note**: Lab 2 uses a simulated requester context (no real authentication). The root path (`/`) always shows the Development Requester Selector first. Navigation tabs switch the active screen without changing the browser URL in the base implementation; the hash routes above represent the target URL standard for Lab 2 frontend routing.
