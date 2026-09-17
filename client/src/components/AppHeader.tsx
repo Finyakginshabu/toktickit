@@ -1,8 +1,70 @@
 import { useState } from "react";
 import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
+import { Role } from "../types/index.js";
+
+export function RoleBadge({ role }: { role: Role }) {
+  if (role === "REQUESTER") {
+    return (
+      <span
+        className="badge rounded-pill px-2 py-1"
+        style={{
+          backgroundColor: "#EAF6EF",
+          color: "#006B3C",
+          border: "1px solid #006B3C",
+          fontSize: "11px",
+          fontWeight: 600,
+        }}
+      >
+        Requester
+      </span>
+    );
+  }
+  if (role === "IT_STAFF") {
+    return (
+      <span
+        className="badge rounded-pill px-2 py-1"
+        style={{
+          backgroundColor: "#0B7A46",
+          color: "#FFFFFF",
+          border: "1px solid #FFFFFF",
+          fontSize: "11px",
+          fontWeight: 600,
+        }}
+      >
+        IT Staff
+      </span>
+    );
+  }
+  return (
+    <span
+      className="badge rounded-pill px-2 py-1"
+      style={{
+        backgroundColor: "#2D3748",
+        color: "#FFFFFF",
+        border: "1px solid #D69E2E",
+        fontSize: "11px",
+        fontWeight: 600,
+      }}
+    >
+      Administrator
+    </span>
+  );
+}
 
 export default function AppHeader() {
   const { requester, openSelector, activeTab, setActiveTab } = useRequester();
+  let authUser = null;
+  let authLogout = async () => {};
+
+  try {
+    const auth = useAuth();
+    authUser = auth.user;
+    authLogout = auth.logout;
+  } catch {
+    // AuthProvider might not be present in isolated component unit tests
+  }
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleNavClick = (tab: "my-tickets" | "create-ticket") => {
@@ -39,9 +101,28 @@ export default function AppHeader() {
           </button>
         </nav>
 
-        {/* Desktop Identity & Change Requester */}
+        {/* Desktop Identity & Session */}
         <div className="d-none d-md-flex align-items-center gap-3">
-          {requester ? (
+          {authUser ? (
+            <div className="d-flex align-items-center gap-3">
+              <div className="text-end lh-sm">
+                <div className="d-flex align-items-center gap-2 justify-content-end">
+                  <span className="fw-semibold text-white">{authUser.name}</span>
+                  <RoleBadge role={authUser.role} />
+                </div>
+                <small className="text-white-50">{authUser.email}</small>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-light d-flex align-items-center gap-1"
+                onClick={authLogout}
+                aria-label="Logout"
+              >
+                <span className="material-symbols-outlined fs-6">logout</span>
+                Logout
+              </button>
+            </div>
+          ) : requester ? (
             <div className="d-flex align-items-center gap-2">
               <div className="text-end lh-sm">
                 <div className="fw-semibold text-white">{requester.name}</div>
@@ -106,9 +187,29 @@ export default function AppHeader() {
               Create Ticket
             </button>
 
-            {/* Requester Profile Box in Mobile Drawer */}
+            {/* User Profile Box in Mobile Drawer */}
             <div className="zen-mobile-requester-box mt-2">
-              {requester ? (
+              {authUser ? (
+                <div className="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div className="d-flex align-items-center gap-2 mb-1">
+                      <span className="fw-semibold text-white">{authUser.name}</span>
+                      <RoleBadge role={authUser.role} />
+                    </div>
+                    <small className="text-white-50">{authUser.email}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-light"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      authLogout();
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : requester ? (
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
                     <div className="fw-semibold text-white">{requester.name}</div>
