@@ -2,7 +2,6 @@ import { useState } from "react";
 import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
 import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import AppHeader from "./components/AppHeader.js";
-import RequesterSelectorModal from "./components/RequesterSelectorModal.js";
 import CreateTicketForm from "./components/CreateTicketForm.js";
 import MyTicketsList from "./components/MyTicketsList.js";
 import RequesterTicketDetail from "./components/RequesterTicketDetail.js";

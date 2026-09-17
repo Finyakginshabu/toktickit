@@ -53,7 +53,7 @@ export function RoleBadge({ role }: { role: Role }) {
 }
 
 export default function AppHeader() {
-  const { requester, openSelector, activeTab, setActiveTab } = useRequester();
+  const { activeTab, setActiveTab } = useRequester();
   let authUser = null;
   let authLogout = async () => {};
 
@@ -103,7 +103,7 @@ export default function AppHeader() {
 
         {/* Desktop Identity & Session */}
         <div className="d-none d-md-flex align-items-center gap-3">
-          {authUser ? (
+          {authUser && (
             <div className="d-flex align-items-center gap-3">
               <div className="text-end lh-sm">
                 <div className="d-flex align-items-center gap-2 justify-content-end">
@@ -122,31 +122,6 @@ export default function AppHeader() {
                 Logout
               </button>
             </div>
-          ) : requester ? (
-            <div className="d-flex align-items-center gap-2">
-              <div className="text-end lh-sm">
-                <div className="fw-semibold text-white">{requester.name}</div>
-                {requester.department && (
-                  <small className="text-white-50">{requester.department}</small>
-                )}
-              </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-light ms-1"
-                onClick={openSelector}
-                aria-label="Change Requester"
-              >
-                Change Requester
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-sm btn-light text-success fw-bold"
-              onClick={openSelector}
-            >
-              Select Requester
-            </button>
           )}
         </div>
 
@@ -188,8 +163,8 @@ export default function AppHeader() {
             </button>
 
             {/* User Profile Box in Mobile Drawer */}
-            <div className="zen-mobile-requester-box mt-2">
-              {authUser ? (
+            {authUser && (
+              <div className="zen-mobile-requester-box mt-2">
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
                     <div className="d-flex align-items-center gap-2 mb-1">
@@ -209,36 +184,8 @@ export default function AppHeader() {
                     Logout
                   </button>
                 </div>
-              ) : requester ? (
-                <div className="d-flex align-items-center justify-content-between">
-                  <div>
-                    <div className="fw-semibold text-white">{requester.name}</div>
-                    <small className="text-white-50">{requester.department || requester.email}</small>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-light"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      openSelector();
-                    }}
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-light text-success fw-bold w-100"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    openSelector();
-                  }}
-                >
-                  Select Requester
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
