@@ -6,7 +6,7 @@ interface RequesterContextType {
   requester: RequesterUser | null;
   activeTab: AppTab;
   selectedTicketId: number | null;
-  setActiveTab: (tab: AppTab) => void;
+  setActiveTab: (tab: AppTab, ticketId?: number | null) => void;
   setSelectedTicketId: (id: number | null) => void;
 }
 

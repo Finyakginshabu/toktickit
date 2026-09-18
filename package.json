@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:e2e": "playwright test e2e/lab-02",
-    "test:e2e:screenshots": "playwright test e2e/lab-02/capture-screenshots.spec.ts",
+    "test:e2e": "playwright test e2e/lab-03",
+    "test:e2e:lab2": "playwright test e2e/lab-02",
+    "test:e2e:lab3": "playwright test e2e/lab-03",
+    "test:screenshots:lab2": "playwright test e2e/lab-02/capture-screenshots.spec.ts",
+    "test:screenshots:lab3": "playwright test e2e/lab-03/capture-screenshots.spec.ts",
+    "test": "npm run test:server",
     "test:server": "npm run test --prefix server",
     "test:client": "npm run test --prefix client",
     "test:all": "npm run test:server && npm run test:client && npm run test:e2e"
