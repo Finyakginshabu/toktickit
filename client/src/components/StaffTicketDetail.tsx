@@ -46,6 +46,7 @@ export default function StaffTicketDetail() {
   const [notes, setNotes] = useState<InternalNote[]>([]);
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
   const [notesLoading, setNotesLoading] = useState<boolean>(false);
+  const [activeCommsTab, setActiveCommsTab] = useState<"comments" | "notes">("comments");
 
   // Form states for adding comment & note
   const [commentInput, setCommentInput] = useState<string>("");
@@ -371,413 +372,372 @@ export default function StaffTicketDetail() {
         </div>
       )}
 
-      {/* Dual Column Layout: Left Operational Controls / Right Discussions */}
-      <div className="row g-4">
-        {/* ================================================================= */}
-        {/* LEFT COLUMN: Ticket Information, Controls & Attachments           */}
-        {/* ================================================================= */}
-        <div className="col-12 col-lg-7">
-          {/* Main Ticket Card */}
-          <div className="zen-card p-4 mb-4">
-            {/* Ticket Header */}
-            <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3 pb-3 border-bottom">
-              <div>
-                <span className="badge bg-light text-muted border mb-1">Operational Support Ticket</span>
-                <h1 className="h4 fw-bold text-success mb-1">{ticket.ticketNumber}</h1>
-                <p className="text-muted small mb-0">Created on {formatDate(ticket.createdAt)}</p>
-              </div>
-              <div className="text-end">
-                <small className="text-muted d-block mb-1">Current Status</small>
-                {formatStatusBadge(ticket.currentStatus)}
-              </div>
-            </div>
+      {/* Single-Column Layout */}
 
-            {/* Operational Controls Toolbar */}
-            <div className="p-3 bg-light rounded border mb-4">
-              <h2 className="h6 fw-bold mb-3 d-flex align-items-center gap-1 text-success">
-                <span className="material-symbols-outlined fs-5">tune</span>
-                Operational Controls
-              </h2>
-
-              <div className="row g-3">
-                {/* 1. Ticket Ownership Control */}
-                <div className="col-12 col-sm-6">
-                  <label htmlFor="ownerSelect" className="form-label small fw-semibold text-muted mb-1">
-                    Ticket Owner
-                  </label>
-                  <div className="d-flex gap-2">
-                    <select
-                      id="ownerSelect"
-                      data-testid="owner-select"
-                      className="form-select form-select-sm"
-                      value={ticket.ticketOwnerId || ""}
-                      onChange={(e) => handleOwnerChange(e.target.value)}
-                      disabled={opLoading}
-                      aria-label="Ticket Owner"
-                    >
-                      <option value="" disabled>
-                        {ticket.ticketOwnerId ? "Select Owner" : "Unassigned"}
-                      </option>
-                      {activeStaff.map((staff) => (
-                        <option key={staff.id} value={staff.id}>
-                          {staff.name} ({staff.role === "ADMINISTRATOR" ? "Admin" : "Staff"})
-                        </option>
-                      ))}
-                    </select>
-
-                    {!isClaimedByMe && (
-                      <button
-                        type="button"
-                        data-testid="claim-ticket-btn"
-                        className="btn btn-sm btn-zen-primary text-nowrap"
-                        onClick={handleClaim}
-                        disabled={opLoading}
-                        title="Claim this ticket as owner"
-                      >
-                        Claim
-                      </button>
-                    )}
-                  </div>
-                  {isClaimedByMe && (
-                    <span className="text-success small d-block mt-1">
-                      ✓ Claimed by you
-                    </span>
-                  )}
-                </div>
-
-                {/* 2. IT Priority Selector */}
-                <div className="col-12 col-sm-6">
-                  <label htmlFor="itPrioritySelect" className="form-label small fw-semibold text-muted mb-1">
-                    IT Priority
-                  </label>
-                  <div className="d-flex align-items-center gap-2">
-                    <select
-                      id="itPrioritySelect"
-                      data-testid="it-priority-select"
-                      className="form-select form-select-sm"
-                      value={ticket.itPriority}
-                      onChange={(e) => handlePriorityChange(e.target.value as Priority)}
-                      disabled={opLoading}
-                      aria-label="IT Priority"
-                    >
-                      <option value="LOW">LOW</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="HIGH">HIGH</option>
-                      <option value="URGENT">URGENT</option>
-                    </select>
-                    {formatPriorityBadge(ticket.itPriority)}
-                  </div>
-                  <span className="text-muted small d-block mt-1">
-                    Req: {ticket.requestedPriority}
-                  </span>
-                </div>
-
-                {/* 3. Status Transition Action Selector */}
-                <div className="col-12">
-                  <label htmlFor="statusTransitionSelect" className="form-label small fw-semibold text-muted mb-1">
-                    Advance Status Workflow
-                  </label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {nextStatuses.length === 0 ? (
-                      <span className="text-muted small fst-italic">
-                        No further transitions permitted from {ticket.currentStatus.replace(/_/g, " ")}.
-                      </span>
-                    ) : (
-                      nextStatuses.map((targetStatus) => (
-                        <button
-                          key={targetStatus}
-                          type="button"
-                          data-testid={`status-transition-${targetStatus}`}
-                          className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
-                          onClick={() => handleSelectStatus(targetStatus)}
-                          disabled={opLoading}
-                        >
-                          <span>Move to {targetStatus.replace(/_/g, " ")}</span>
-                          <span className="material-symbols-outlined fs-6">arrow_forward</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Read-Only Ticket Information Fields */}
-            <div className="row g-3 mb-3">
-              <div className="col-12 col-sm-6">
-                <label className="form-label small fw-semibold text-muted mb-1">Requester</label>
-                <input
-                  type="text"
-                  readOnly
-                  className="zen-input zen-input-readonly form-control"
-                  value={`${ticket.requester?.name || "Unknown"} (${ticket.requester?.email || ""})`}
-                  aria-label="Requester details"
-                />
-              </div>
-
-              <div className="col-12 col-sm-6">
-                <label className="form-label small fw-semibold text-muted mb-1">Category / Related System</label>
-                <input
-                  type="text"
-                  readOnly
-                  className="zen-input zen-input-readonly form-control"
-                  value={`${ticket.category?.name || "—"} / ${ticket.relatedSystem?.name || "—"}`}
-                  aria-label="Category and System"
-                />
-              </div>
-
-              <div className="col-12">
-                <label className="form-label small fw-semibold text-muted mb-1">Summary</label>
-                <input
-                  type="text"
-                  readOnly
-                  className="zen-input zen-input-readonly form-control fw-semibold"
-                  value={ticket.summary}
-                  aria-label="Ticket Summary"
-                />
-              </div>
-
-              <div className="col-12">
-                <label className="form-label small fw-semibold text-muted mb-1">Description</label>
-                <textarea
-                  readOnly
-                  rows={4}
-                  className="zen-input zen-input-readonly form-control"
-                  value={ticket.description}
-                  aria-label="Ticket Description"
-                />
-              </div>
-
-              {ticket.resolutionSummary && (
-                <div className="col-12">
-                  <label className="form-label small fw-semibold text-success mb-1">
-                    Resolution Summary
-                  </label>
-                  <div className="p-2 border border-success-subtle bg-success-subtle rounded small">
-                    {ticket.resolutionSummary}
-                  </div>
-                </div>
-              )}
-            </div>
+      {/* Main Ticket Card */}
+      <div className="zen-card p-4 mb-4">
+        {/* Ticket Header */}
+        <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3 pb-3 border-bottom">
+          <div>
+            <span className="badge bg-light text-muted border mb-1">Operational Support Ticket</span>
+            <h1 className="h4 fw-bold text-success mb-1">{ticket.ticketNumber}</h1>
+            <p className="text-muted small mb-0">Created on {formatDate(ticket.createdAt)}</p>
           </div>
-
-          {/* Attachments Section */}
-          <AttachmentSection
-            ticketId={ticket.id}
-            requesterId={ticket.requesterId}
-            attachments={ticket.attachments || []}
-            onAttachmentChanged={fetchTicket}
-          />
+          <div className="text-end">
+            <small className="text-muted d-block mb-1">Current Status</small>
+            {formatStatusBadge(ticket.currentStatus)}
+          </div>
         </div>
 
-        {/* ================================================================= */}
-        {/* RIGHT COLUMN: Discussions Stream (Public Comments & Notes)        */}
-        {/* ================================================================= */}
-        <div className="col-12 col-lg-5">
-          {/* 1. Public Comments Stream Panel */}
-          <div className="zen-card p-3 mb-4 border-success-subtle" data-testid="public-comments-panel">
-            <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
-              <div>
-                <h2 className="h6 fw-bold mb-0 text-success d-flex align-items-center gap-1">
-                  <span className="material-symbols-outlined fs-5">forum</span>
-                  Public Comments
-                </h2>
-                <small className="text-muted">Visible to Requester and Support Staff</small>
-              </div>
-              <span className="badge bg-light text-dark border">
-                {comments.length}
-              </span>
-            </div>
+        {/* Operational Controls Toolbar */}
+        <div className="p-3 bg-light rounded border mb-4">
+          <h2 className="h6 fw-bold mb-3 d-flex align-items-center gap-1 text-success">
+            <span className="material-symbols-outlined fs-5">tune</span>
+            Operational Controls
+          </h2>
 
-            {/* Comments List */}
-            <div
-              className="comments-thread mb-3"
-              style={{ maxHeight: "320px", overflowY: "auto" }}
-            >
-              {commentsLoading && comments.length === 0 ? (
-                <div className="text-center py-3 text-muted small">Loading comments…</div>
-              ) : comments.length === 0 ? (
-                <div className="text-center py-4 text-muted small fst-italic">
-                  No public comments yet.
-                </div>
-              ) : (
-                <div className="d-flex flex-column gap-2">
-                  {comments.map((c) => (
-                    <div key={c.id} className="p-2 bg-light rounded border">
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <span className="fw-semibold small text-dark">{c.author.name}</span>
-                        <div className="d-flex align-items-center gap-1">
-                          <span
-                            className={`badge ${
-                              c.author.role === "REQUESTER"
-                                ? "badge-role-requester"
-                                : "badge-role-staff"
-                            }`}
-                            style={{ fontSize: "0.7rem" }}
-                          >
-                            {c.author.role.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-muted" style={{ fontSize: "0.7rem" }}>
-                            {formatDate(c.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="mb-0 small text-break" style={{ whiteSpace: "pre-wrap" }}>
-                        {c.content}
-                      </p>
-                    </div>
+          <div className="row g-3">
+            {/* 1. Ticket Ownership Control */}
+            <div className="col-12 col-sm-6">
+              <label htmlFor="ownerSelect" className="form-label small fw-semibold text-muted mb-1">
+                Ticket Owner
+              </label>
+              <div className="d-flex align-items-center gap-2">
+                <select
+                  id="ownerSelect"
+                  data-testid="owner-select"
+                  className="form-select"
+                  value={ticket.ticketOwnerId || ""}
+                  onChange={(e) => handleOwnerChange(e.target.value)}
+                  disabled={opLoading}
+                  aria-label="Ticket Owner"
+                >
+                  <option value="" disabled>
+                    {ticket.ticketOwnerId ? "Select Owner" : "Unassigned"}
+                  </option>
+                  {activeStaff.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.name} ({staff.role === "ADMINISTRATOR" ? "Admin" : "Staff"})
+                    </option>
                   ))}
-                </div>
-              )}
-            </div>
+                </select>
 
-            {/* Add Public Comment Form */}
-            <form onSubmit={handleAddComment}>
-              {commentError && (
-                <div className="alert alert-danger p-2 small mb-2">{commentError}</div>
-              )}
-              <div className="mb-2">
-                <textarea
-                  className="form-control form-control-sm"
-                  rows={3}
-                  placeholder="Type a public message visible to the requester…"
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  maxLength={2000}
-                  disabled={commentSubmitting}
-                  aria-label="Add Public Comment"
-                />
-                <div className="d-flex justify-content-between align-items-center mt-1">
-                  <small className="text-muted" style={{ fontSize: "0.75rem" }}>
-                    {commentInput.length}/2000 characters
-                  </small>
-                </div>
-              </div>
-              <button
-                type="submit"
-                data-testid="add-comment-btn"
-                className="btn btn-sm btn-zen-primary w-100 d-flex align-items-center justify-content-center gap-1"
-                disabled={commentSubmitting || !commentInput.trim()}
-              >
-                {commentSubmitting ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" role="status" />
-                    <span>Posting…</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined fs-6">send</span>
-                    <span>Post Public Comment</span>
-                  </>
+                {!isClaimedByMe && (
+                  <button
+                    type="button"
+                    data-testid="claim-ticket-btn"
+                    className="btn btn-sm btn-zen-primary text-nowrap"
+                    onClick={handleClaim}
+                    disabled={opLoading}
+                    title="Claim this ticket as owner"
+                  >
+                    Claim
+                  </button>
                 )}
-              </button>
-            </form>
-          </div>
-
-          {/* 2. Confidential Internal Notes Panel */}
-          <div
-            className="zen-card p-3"
-            data-testid="internal-notes-panel"
-            style={{
-              backgroundColor: "var(--color-internal-note-bg, #FFFDF0)",
-              borderColor: "var(--color-internal-note-border, #ECC94B)",
-              borderWidth: "1.5px",
-            }}
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom border-warning-subtle">
-              <div>
-                <div className="d-flex align-items-center gap-1 mb-1">
-                  <span className="material-symbols-outlined fs-5 text-warning">lock</span>
-                  <h2 className="h6 fw-bold mb-0 text-dark">Internal Notes</h2>
-                </div>
-                <span className="badge bg-warning-subtle text-dark border border-warning" style={{ fontSize: "0.7rem" }}>
-                  Confidential: Visible only to IT Staff & Admin
-                </span>
               </div>
-              <span className="badge bg-warning-subtle text-dark border border-warning">
-                {notes.length}
-              </span>
+              {isClaimedByMe && (
+                <span className="text-success small d-block mt-1">✓ Claimed by you</span>
+              )}
             </div>
 
-            {/* Notes List */}
-            <div
-              className="notes-thread mb-3"
-              style={{ maxHeight: "320px", overflowY: "auto" }}
-            >
-              {notesLoading && notes.length === 0 ? (
-                <div className="text-center py-3 text-muted small">Loading notes…</div>
-              ) : notes.length === 0 ? (
-                <div className="text-center py-4 text-muted small fst-italic">
-                  No internal notes yet.
-                </div>
-              ) : (
-                <div className="d-flex flex-column gap-2">
-                  {notes.map((n) => (
-                    <div
-                      key={n.id}
-                      className="p-2 rounded border border-warning-subtle"
-                      style={{ backgroundColor: "#FFFDE8" }}
+            {/* 2. IT Priority Selector */}
+            <div className="col-12 col-sm-6">
+              <label htmlFor="itPrioritySelect" className="form-label small fw-semibold text-muted mb-1">
+                IT Priority
+              </label>
+              <div className="d-flex align-items-center gap-2">
+                <select
+                  id="itPrioritySelect"
+                  data-testid="it-priority-select"
+                  className="form-select"
+                  value={ticket.itPriority}
+                  onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+                  disabled={opLoading}
+                  aria-label="IT Priority"
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="URGENT">URGENT</option>
+                </select>
+                {formatPriorityBadge(ticket.itPriority)}
+              </div>
+              <span className="text-muted small d-block mt-1">Req: {ticket.requestedPriority}</span>
+            </div>
+
+            {/* 3. Status Transition Action Selector */}
+            <div className="col-12">
+              <label htmlFor="statusTransitionSelect" className="form-label small fw-semibold text-muted mb-1">
+                Advance Status Workflow
+              </label>
+              <div className="d-flex flex-wrap gap-2">
+                {nextStatuses.length === 0 ? (
+                  <span className="text-muted small fst-italic">
+                    No further transitions permitted from {ticket.currentStatus.replace(/_/g, " ")}.
+                  </span>
+                ) : (
+                  nextStatuses.map((targetStatus) => (
+                    <button
+                      key={targetStatus}
+                      type="button"
+                      data-testid={`status-transition-${targetStatus}`}
+                      className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+                      onClick={() => handleSelectStatus(targetStatus)}
+                      disabled={opLoading}
                     >
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        <span className="fw-semibold small text-dark">{n.author.name}</span>
-                        <div className="d-flex align-items-center gap-1">
-                          <span className="badge bg-secondary text-white" style={{ fontSize: "0.7rem" }}>
-                            {n.author.role}
-                          </span>
-                          <span className="text-muted" style={{ fontSize: "0.7rem" }}>
-                            {formatDate(n.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="mb-0 small text-break" style={{ whiteSpace: "pre-wrap" }}>
-                        {n.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Add Internal Note Form */}
-            <form onSubmit={handleAddNote}>
-              {noteError && <div className="alert alert-danger p-2 small mb-2">{noteError}</div>}
-              <div className="mb-2">
-                <textarea
-                  className="form-control form-control-sm bg-white"
-                  rows={3}
-                  placeholder="Record private operational notes, diagnostic data, or escalation details…"
-                  value={noteInput}
-                  onChange={(e) => setNoteInput(e.target.value)}
-                  maxLength={2000}
-                  disabled={noteSubmitting}
-                  aria-label="Add Internal Note"
-                />
-                <div className="d-flex justify-content-between align-items-center mt-1">
-                  <small className="text-muted" style={{ fontSize: "0.75rem" }}>
-                    {noteInput.length}/2000 characters
-                  </small>
-                </div>
-              </div>
-              <button
-                type="submit"
-                data-testid="add-note-btn"
-                className="btn btn-sm btn-warning w-100 d-flex align-items-center justify-content-center gap-1 fw-semibold text-dark"
-                disabled={noteSubmitting || !noteInput.trim()}
-              >
-                {noteSubmitting ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" role="status" />
-                    <span>Saving Note…</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined fs-6">lock</span>
-                    <span>Save Internal Note</span>
-                  </>
+                      <span>Move to {targetStatus.replace(/_/g, " ")}</span>
+                      <span className="material-symbols-outlined fs-6">arrow_forward</span>
+                    </button>
+                  ))
                 )}
-              </button>
-            </form>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Read-Only Ticket Information Fields */}
+        <div className="row g-3 mb-3">
+          <div className="col-12 col-sm-6">
+            <label className="form-label small fw-semibold text-muted mb-1">Requester</label>
+            <input
+              type="text"
+              readOnly
+              className="zen-input zen-input-readonly form-control"
+              value={`${ticket.requester?.name || "Unknown"} (${ticket.requester?.email || ""})`}
+              aria-label="Requester details"
+            />
+          </div>
+
+          <div className="col-12 col-sm-6">
+            <label className="form-label small fw-semibold text-muted mb-1">Category / Related System</label>
+            <input
+              type="text"
+              readOnly
+              className="zen-input zen-input-readonly form-control"
+              value={`${ticket.category?.name || "—"} / ${ticket.relatedSystem?.name || "—"}`}
+              aria-label="Category and System"
+            />
+          </div>
+
+          <div className="col-12">
+            <label className="form-label small fw-semibold text-muted mb-1">Summary</label>
+            <input
+              type="text"
+              readOnly
+              className="zen-input zen-input-readonly form-control fw-semibold"
+              value={ticket.summary}
+              aria-label="Ticket Summary"
+            />
+          </div>
+
+          <div className="col-12">
+            <label className="form-label small fw-semibold text-muted mb-1">Description</label>
+            <textarea
+              readOnly
+              rows={4}
+              className="zen-input zen-input-readonly form-control"
+              value={ticket.description}
+              aria-label="Ticket Description"
+            />
+          </div>
+
+          {ticket.resolutionSummary && (
+            <div className="col-12">
+              <label className="form-label small fw-semibold text-success mb-1">
+                Resolution Summary
+              </label>
+              <div className="p-2 border border-success-subtle bg-success-subtle rounded small">
+                {ticket.resolutionSummary}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Attachments Section */}
+      <AttachmentSection
+        ticketId={ticket.id}
+        requesterId={ticket.requesterId}
+        attachments={ticket.attachments || []}
+        onAttachmentChanged={fetchTicket}
+      />
+
+      {/* Communications — Tabbed Panel (below attachments) */}
+      <div
+        className="zen-card p-3 mt-4"
+        style={activeCommsTab === "notes" ? { backgroundColor: "#FFFDF0", border: "1.5px solid #ECC94B" } : {}}
+      >
+        {/* Tab Navigation */}
+        <ul className="nav nav-tabs mb-3" role="tablist">
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              className={`nav-link d-flex align-items-center gap-1 ${activeCommsTab === "comments" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveCommsTab("comments")}
+              aria-selected={activeCommsTab === "comments"}
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">forum</span>
+              Public Comments
+              <span className="badge bg-light text-dark border ms-1">{comments.length}</span>
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              className={`nav-link d-flex align-items-center gap-1 ${activeCommsTab === "notes" ? "active fw-semibold" : "text-muted"}`}
+              style={activeCommsTab === "notes" ? { color: "#B7791F" } : {}}
+              onClick={() => setActiveCommsTab("notes")}
+              aria-selected={activeCommsTab === "notes"}
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">lock</span>
+              Internal Notes
+              <span className="badge bg-warning-subtle text-dark border border-warning ms-1">{notes.length}</span>
+            </button>
+          </li>
+        </ul>
+
+        {/* Public Comments Panel */}
+        <div data-testid="public-comments-panel" className={activeCommsTab !== "comments" ? "d-none" : ""}>
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <small className="text-muted">
+              <span className="material-symbols-outlined fs-6 align-middle me-1">forum</span>
+              Visible to Requester and Support Staff
+            </small>
+          </div>
+
+          <div className="comments-thread mb-3" style={{ maxHeight: "360px", overflowY: "auto" }}>
+            {commentsLoading && comments.length === 0 ? (
+              <div className="text-center py-3 text-muted small">Loading comments…</div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-4 text-muted small fst-italic">No public comments yet.</div>
+            ) : (
+              <div className="d-flex flex-column gap-2">
+                {comments.map((c) => (
+                  <div key={c.id} className="p-2 bg-light rounded border">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-semibold small text-dark">{c.author.name}</span>
+                      <div className="d-flex align-items-center gap-1">
+                        <span
+                          className={`badge ${
+                            c.author.role === "REQUESTER" ? "badge-role-requester" : "badge-role-staff"
+                          }`}
+                          style={{ fontSize: "0.7rem" }}
+                        >
+                          {c.author.role.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-muted" style={{ fontSize: "0.7rem" }}>
+                          {formatDate(c.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mb-0 small text-break" style={{ whiteSpace: "pre-wrap" }}>{c.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleAddComment}>
+            {commentError && <div className="alert alert-danger p-2 small mb-2">{commentError}</div>}
+            <div className="mb-2">
+              <textarea
+                className="form-control form-control-sm"
+                rows={3}
+                placeholder="Type a public message visible to the requester…"
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                maxLength={2000}
+                disabled={commentSubmitting}
+                aria-label="Add Public Comment"
+              />
+              <small className="text-muted" style={{ fontSize: "0.75rem" }}>
+                {commentInput.length}/2000 characters
+              </small>
+            </div>
+            <button
+              type="submit"
+              data-testid="add-comment-btn"
+              className="btn btn-sm btn-zen-primary ticket-action-button d-flex align-items-center gap-1"
+              disabled={commentSubmitting || !commentInput.trim()}
+            >
+              {commentSubmitting ? (
+                <><span className="spinner-border spinner-border-sm" role="status" /><span>Posting…</span></>
+              ) : (
+                <><span className="material-symbols-outlined fs-6">send</span><span>Send Comment</span></>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Internal Notes Panel */}
+        <div
+          data-testid="internal-notes-panel"
+          className={activeCommsTab !== "notes" ? "d-none" : ""}
+        >
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="d-flex align-items-center gap-2">
+              <span className="material-symbols-outlined fs-5 text-warning">lock</span>
+              <span className="badge bg-warning-subtle text-dark border border-warning">
+                Confidential: Visible only to IT Staff &amp; Admin
+              </span>
+            </div>
+          </div>
+
+          <div className="notes-thread mb-3" style={{ maxHeight: "360px", overflowY: "auto" }}>
+            {notesLoading && notes.length === 0 ? (
+              <div className="text-center py-3 text-muted small">Loading notes…</div>
+            ) : notes.length === 0 ? (
+              <div className="text-center py-4 text-muted small fst-italic">No internal notes yet.</div>
+            ) : (
+              <div className="d-flex flex-column gap-2">
+                {notes.map((n) => (
+                  <div key={n.id} className="p-2 rounded border border-warning-subtle" style={{ backgroundColor: "#FFFDE8" }}>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-semibold small text-dark">{n.author.name}</span>
+                      <div className="d-flex align-items-center gap-1">
+                        <span className="badge bg-secondary text-white" style={{ fontSize: "0.7rem" }}>{n.author.role}</span>
+                        <span className="text-muted" style={{ fontSize: "0.7rem" }}>{formatDate(n.createdAt)}</span>
+                      </div>
+                    </div>
+                    <p className="mb-0 small text-break" style={{ whiteSpace: "pre-wrap" }}>{n.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleAddNote}>
+            {noteError && <div className="alert alert-danger p-2 small mb-2">{noteError}</div>}
+            <div className="mb-2">
+              <textarea
+                className="form-control form-control-sm bg-white"
+                rows={3}
+                placeholder="Record private operational notes, diagnostic data, or escalation details…"
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                maxLength={2000}
+                disabled={noteSubmitting}
+                aria-label="Add Internal Note"
+              />
+              <small className="text-muted" style={{ fontSize: "0.75rem" }}>
+                {noteInput.length}/2000 characters
+              </small>
+            </div>
+            <button
+              type="submit"
+              data-testid="add-note-btn"
+              className="btn btn-sm btn-warning ticket-action-button d-flex align-items-center gap-1 fw-semibold text-dark"
+              disabled={noteSubmitting || !noteInput.trim()}
+            >
+              {noteSubmitting ? (
+                <><span className="spinner-border spinner-border-sm" role="status" /><span>Saving Note…</span></>
+              ) : (
+                <><span className="material-symbols-outlined fs-6">lock</span><span>Save Internal Note</span></>
+              )}
+            </button>
+          </form>
         </div>
       </div>
 

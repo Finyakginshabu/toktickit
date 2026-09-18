@@ -178,5 +178,32 @@ describe("Lab 3 Authorization & Ownership API Suite (server/tests/lab-03/authori
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe("FORBIDDEN");
   });
+
+  // API-07: Non-Admin attempts to access user admin API (AC-24, FR-15)
+  it("rejects Requester attempting to access /api/admin/users with 403 Forbidden (API-07, AC-24, FR-15)", async () => {
+    const res = await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", `Bearer ${jenniferToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("rejects IT Staff attempting to access /api/admin/users with 403 Forbidden (API-07, AC-24, FR-15)", async () => {
+    const res = await request(app)
+      .get("/api/admin/users")
+      .set("Authorization", `Bearer ${staffToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("rejects unauthenticated access to /api/admin/users with 401 Unauthorized", async () => {
+    const res = await request(app).get("/api/admin/users");
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("UNAUTHORIZED");
+  });
 });
+
 

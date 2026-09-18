@@ -464,7 +464,7 @@ export default function RequesterTicketDetail() {
           <button
             type="submit"
             data-testid="requester-add-comment-btn"
-            className="btn btn-sm btn-zen-primary d-flex align-items-center gap-1"
+            className="btn btn-sm btn-zen-primary ticket-action-button d-flex align-items-center gap-1"
             disabled={commentSubmitting || !commentInput.trim()}
           >
             {commentSubmitting ? (
