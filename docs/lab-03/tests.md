@@ -81,7 +81,7 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 | **AC-10** (Staff Queue) | `API-08`, `UI-04`, `E2E-02` | Queue displays tickets with search, filters, and pagination. |
 | **AC-11** (Claim Ticket) | `API-09`, `UI-05`, `E2E-02` | Unassigned tickets claimed by IT Staff and moved to OPEN. |
 | **AC-12** (Reassign Owner) | `API-10`, `API-30` | Tickets reassigned to another active staff member. |
-| **AC-13** (IT Priority) | `API-11`, `UI-05`, `E2E-02` | IT Priority updated independently of Requested Priority. |
+| **AC-13** (IT Priority) | `API-11`, `UI-05`, `E2E-02` | IT Priority updated independently of Priority. |
 | **AC-14** (Status Transition)| `API-12`, `E2E-02` | Permitted transitions advance ticket workflow. |
 | **AC-15** (Invalid Status) | `API-13`, `UNIT-02` | Prohibited transitions rejected with HTTP 400. |
 | **AC-16** (Public Comments) | `API-15`, `UI-06` | Append-only public comments visible to Requester and Staff. |

@@ -146,7 +146,7 @@
 
 ### `POST /api/tickets`
 * **Description**: Creates a new ticket. The authenticated user ID is automatically recorded as `requesterId`.
-* **Authentication**: Required (Roles: `REQUESTER`, `IT_STAFF`, `ADMINISTRATOR`)
+* **Authentication**: Required (Role: `REQUESTER` only)
 * **Content-Type**: `multipart/form-data`
 * **Form Fields**:
   * `categoryId`: Integer (Required)
@@ -167,8 +167,12 @@
     "createdAt": "2026-09-17T10:00:00.000Z"
   }
   ```
+* **Error Responses**:
+  * `401 Unauthorized`: Missing or invalid token.
+  * `403 Forbidden`: Authenticated user is not a `REQUESTER` (IT Staff and Administrators cannot create tickets).
 
 ---
+
 
 ### `GET /api/tickets/my-tickets`
 * **Description**: Retrieves paginated tickets owned strictly by the currently authenticated user.
@@ -202,7 +206,7 @@
     "pagination": {
       "page": 1,
       "pageSize": 10,
-      "totalItems": 1,
+      "total": 1,
       "totalPages": 1
     }
   }
@@ -282,7 +286,7 @@
   ```
 * **Error Responses**:
   * `400 Bad Request`: Ticket already has 5 active attachments, or empty/invalid file.
-  * `403 Forbidden`: Ticket not owned by Requester.
+  * `403 Forbidden`: Ticket No.t owned by Requester.
   * `413 Payload Too Large`: File exceeds 5 MB.
   * `415 Unsupported Media Type`: File type not permitted.
 
@@ -379,7 +383,7 @@
     "pagination": {
       "page": 1,
       "pageSize": 10,
-      "totalItems": 24,
+      "total": 24,
       "totalPages": 3
     }
   }

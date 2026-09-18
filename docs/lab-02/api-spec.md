@@ -137,7 +137,7 @@
   * `requesterId` (Number, required) — ID of the active requester.
   * `search` (String, optional) — Case-insensitive search on ticket number and summary.
   * `categoryId` (Number, optional) — Filter by category ID.
-  * `priority` (String, optional) — Filter by requested priority (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
+  * `priority` (String, optional) — Filter by Priority (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
   * `status` (String, optional) — Filter by ticket status (`NEW`, `IN_PROGRESS`, etc.).
   * `page` (Number, optional, default `1`).
   * `pageSize` (Number, optional, default `10`, max `50`).
