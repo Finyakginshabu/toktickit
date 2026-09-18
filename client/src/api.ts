@@ -503,4 +503,118 @@ export async function getActiveStaffUsers(): Promise<import("./types/index.js").
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Lab 3 — Administrator User Management APIs
+// ---------------------------------------------------------------------------
+
+export async function getAdminUsers(
+  params?: import("./types/index.js").GetAdminUsersParams
+): Promise<import("./types/index.js").User[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.set("search", params.search);
+  if (params?.role) queryParams.set("role", params.role);
+
+  const queryString = queryParams.toString();
+  const url = `${API_URL}/api/admin/users${queryString ? `?${queryString}` : ""}`;
+
+  const res = await fetch(url, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to fetch users (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function createAdminUser(
+  data: import("./types/index.js").CreateAdminUserPayload
+): Promise<import("./types/index.js").User> {
+  const res = await fetch(`${API_URL}/api/admin/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to create user (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function updateAdminUser(
+  id: number,
+  data: import("./types/index.js").UpdateAdminUserPayload
+): Promise<import("./types/index.js").User> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to update user (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function resetAdminUserPassword(
+  id: number,
+  initialPassword: string
+): Promise<{ message: string; mustChangePassword: boolean }> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ initialPassword }),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to reset password (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    throw error;
+  }
+
+  return res.json();
+}
+
+
 

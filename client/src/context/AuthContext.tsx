@@ -63,7 +63,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  setActiveTab: (tab: AppTab) => void;
+  setActiveTab: (tab: AppTab, ticketId?: number | null) => void;
   setSelectedTicketId: (id: number | null) => void;
   clearError: () => void;
 }
@@ -102,10 +102,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   // Wrapped setters that keep URL in sync
-  const setActiveTab = useCallback((tab: AppTab) => {
+  const setActiveTab = useCallback((tab: AppTab, ticketId?: number | null) => {
     setActiveTabRaw(tab);
-    syncUrl(tab, undefined, user?.role);
-  }, [user?.role]);
+    if (tab === "ticket-detail") {
+      const detailTicketId = ticketId ?? selectedTicketId;
+      if (detailTicketId !== null && detailTicketId !== undefined) {
+        syncUrl(tab, detailTicketId, user?.role);
+      }
+    } else {
+      syncUrl(tab, undefined, user?.role);
+    }
+  }, [selectedTicketId, user?.role]);
 
   const setSelectedTicketId = useCallback((id: number | null) => {
     setSelectedTicketIdRaw(id);

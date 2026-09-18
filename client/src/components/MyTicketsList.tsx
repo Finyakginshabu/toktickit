@@ -372,7 +372,7 @@ export default function MyTicketsList() {
                     key={t.id}
                     onClick={() => {
                       setSelectedTicketId(t.id);
-                      setActiveTab("ticket-detail");
+                      setActiveTab("ticket-detail", t.id);
                     }}
                     role="button"
                     tabIndex={0}
@@ -380,7 +380,7 @@ export default function MyTicketsList() {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         setSelectedTicketId(t.id);
-                        setActiveTab("ticket-detail");
+                        setActiveTab("ticket-detail", t.id);
                       }
                     }}
                   >
@@ -391,7 +391,7 @@ export default function MyTicketsList() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTicketId(t.id);
-                          setActiveTab("ticket-detail");
+                          setActiveTab("ticket-detail", t.id);
                         }}
                       >
                         {t.ticketNumber}
@@ -435,13 +435,13 @@ export default function MyTicketsList() {
                 tabIndex={0}
                 onClick={() => {
                   setSelectedTicketId(t.id);
-                  setActiveTab("ticket-detail");
+                  setActiveTab("ticket-detail", t.id);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     setSelectedTicketId(t.id);
-                    setActiveTab("ticket-detail");
+                    setActiveTab("ticket-detail", t.id);
                   }
                 }}
               >

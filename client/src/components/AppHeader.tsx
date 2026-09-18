@@ -5,51 +5,12 @@ import { Role, AppTab } from "../types/index.js";
 
 export function RoleBadge({ role }: { role: Role }) {
   if (role === "REQUESTER") {
-    return (
-      <span
-        className="badge rounded-pill px-2 py-1"
-        style={{
-          backgroundColor: "#EAF6EF",
-          color: "#006B3C",
-          border: "1px solid #006B3C",
-          fontSize: "11px",
-          fontWeight: 600,
-        }}
-      >
-        Requester
-      </span>
-    );
+    return <span className="badge badge-role-requester">Requester</span>;
   }
   if (role === "IT_STAFF") {
-    return (
-      <span
-        className="badge rounded-pill px-2 py-1"
-        style={{
-          backgroundColor: "#0B7A46",
-          color: "#FFFFFF",
-          border: "1px solid #FFFFFF",
-          fontSize: "11px",
-          fontWeight: 600,
-        }}
-      >
-        IT Staff
-      </span>
-    );
+    return <span className="badge badge-role-it-staff">IT Staff</span>;
   }
-  return (
-    <span
-      className="badge rounded-pill px-2 py-1"
-      style={{
-        backgroundColor: "#2D3748",
-        color: "#FFFFFF",
-        border: "1px solid #D69E2E",
-        fontSize: "11px",
-        fontWeight: 600,
-      }}
-    >
-      Administrator
-    </span>
-  );
+  return <span className="badge badge-role-admin">Administrator</span>;
 }
 
 export default function AppHeader() {

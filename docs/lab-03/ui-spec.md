@@ -111,25 +111,26 @@ TokTickIT reuses and extends the **Zen Green Design System** established in Lab 
   (*table ui should be similar to table of My Ticket with different component*)
 
 ### 3.5. IT Staff Ticket Detail Screen
-* **Dual-Column Operational Layout**:
-  * **Left Column / Ticket Details**:
-    * System fields: Ticket Number, Created, Requester Name, Category, Related System.
-    * Editable Controls:
-      * **Ticket Owner**: Dropdown of active IT Staff with "Claim" quick-action button.
-      * **IT Priority**: Dropdown selector (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
-      * **Current Status**: Workflow transition dropdown showing only permitted next states with confirmation.
-    * Summary and Description text blocks.
-    * Attachments panel.
-  * **Right Column / Communications**:
-    * **Public Comments Panel** (White card, green accent border): Visible to Requester and Staff.
-    * **Internal Notes Panel** (Soft amber card `#FFFDF0`, amber border `#ECC94B`): Clearly marked with lock icon and warning tag: *"Internal Notes (Visible only to IT Staff & Admin)"* to prevent accidental leaks.
+* **Layout**: Single-column layout (consistent with Requester Ticket Detail), scrolling top-to-bottom.
+* **Ticket Details Section** (top):
+  * System fields: Ticket Number, Created, Requester Name, Category, Related System.
+  * Editable Controls:
+    * **Ticket Owner**: Dropdown of active IT Staff with "Claim" quick-action button.
+    * **IT Priority**: Dropdown selector (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
+    * **Current Status**: Workflow transition dropdown showing only permitted next states with confirmation.
+  * Summary and Description text blocks.
+  * Attachments panel.
+* **Communications Section** (below attachments):
+  * Displayed as a **tabbed panel** with two tabs:
+    * **Public Comments tab** (default active): Thread of public messages visible to both Requester and IT Staff. Includes a compose textarea and "Post Public Comment" submit button. Shows comment count on tab label.
+    * **Internal Notes tab**: Private notes visible only to IT Staff and Administrators. Amber-tinted card (`#FFFDF0`, amber border `#ECC94B`) with lock icon. Includes a compose textarea and "Save Internal Note" submit button. Shows note count on tab label.
 
 ### 3.6. Administrator User Management Screen
 * **Layout**: Responsive table with top search and action bar.
 * **Action Bar**:
   * Search input (searches Name and Email).
   * Role filter dropdown (*All Roles*, *Requester*, *IT Staff*, *Administrator*).
-  * **"+ Create User"** primary action button.
+  * **"Create User"** primary action button.
 * **User Data Table**:
   * Columns: Full Name, Email Address, Role (with role badge), Status (`Active` green badge / `Inactive` gray badge), and Actions (`Edit`).
 * **Modal Dialogs**:

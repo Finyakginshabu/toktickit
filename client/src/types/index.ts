@@ -8,6 +8,30 @@ export interface User {
   mustChangePassword: boolean;
   department?: string | null;
   isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GetAdminUsersParams {
+  search?: string;
+  role?: Role | "";
+}
+
+export interface CreateAdminUserPayload {
+  name: string;
+  email: string;
+  role: Role;
+  isActive?: boolean;
+  initialPassword: string;
+  department?: string;
+}
+
+export interface UpdateAdminUserPayload {
+  name?: string;
+  email?: string;
+  role?: Role;
+  isActive?: boolean;
+  department?: string;
 }
 
 export interface RequesterUser {

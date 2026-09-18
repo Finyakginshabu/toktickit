@@ -121,7 +121,7 @@ export default function StaffTicketQueue() {
 
   const handleOpenDetail = (ticketId: number) => {
     setSelectedTicketId(ticketId);
-    setActiveTab("ticket-detail");
+    setActiveTab("ticket-detail", ticketId);
   };
 
   const formatPriorityBadge = (p: Priority) => {

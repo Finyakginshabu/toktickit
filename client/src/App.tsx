@@ -9,6 +9,7 @@ import StaffTicketDetail from "./components/StaffTicketDetail.js";
 import StaffTicketQueue from "./components/StaffTicketQueue.js";
 import { Login } from "./components/Login.js";
 import { ChangePassword } from "./components/ChangePassword.js";
+import UserManagement from "./components/UserManagement.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
@@ -100,15 +101,7 @@ function MainContent() {
         )
       )}
 
-      {activeTab === "user-management" && (
-        <div className="zen-card p-4 text-center py-5">
-          <span className="material-symbols-outlined fs-1 text-muted mb-2">manage_accounts</span>
-          <h2 className="h5 fw-semibold mb-1">User Management</h2>
-          <p className="text-muted small mb-0">
-            Administrator user account management and initial password resets.
-          </p>
-        </div>
-      )}
+      {activeTab === "user-management" && <UserManagement />}
     </div>
   );
 }

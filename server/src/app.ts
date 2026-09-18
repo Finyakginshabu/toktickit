@@ -9,6 +9,7 @@ import { uploadAttachments } from "./middleware/upload.js";
 import { Priority, TicketStatus } from "@prisma/client";
 import { authRouter } from "./routes/auth.js";
 import { staffRouter } from "./routes/staff.js";
+import { adminRouter } from "./routes/admin.js";
 import {
   authenticateToken,
   optionalAuthenticateToken,
@@ -25,6 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
+app.use("/api/admin", adminRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1 — API health check
