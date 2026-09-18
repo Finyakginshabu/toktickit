@@ -34,9 +34,7 @@ function syncUrl(tab: AppTab, ticketId?: number | null, userRole?: string) {
 
   let path = TAB_TO_PATH[tab];
   if (tab === "ticket-detail" && ticketId) {
-    path = (userRole === "IT_STAFF" || userRole === "ADMINISTRATOR")
-      ? `/staff/tickets/${ticketId}`
-      : `/tickets/${ticketId}`;
+    path = `/tickets/${ticketId}`;
   }
 
   if (window.location.pathname !== path) {
@@ -105,8 +103,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setActiveTab = useCallback((tab: AppTab, ticketId?: number | null) => {
     setActiveTabRaw(tab);
     if (tab === "ticket-detail") {
-      const detailTicketId = ticketId ?? selectedTicketId;
+      const detailTicketId = ticketId !== undefined ? ticketId : selectedTicketId;
       if (detailTicketId !== null && detailTicketId !== undefined) {
+        setSelectedTicketIdRaw(detailTicketId);
         syncUrl(tab, detailTicketId, user?.role);
       }
     } else {
@@ -116,7 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setSelectedTicketId = useCallback((id: number | null) => {
     setSelectedTicketIdRaw(id);
-    if (id !== null) syncUrl("ticket-detail", id, user?.role);
+    if (id !== null) {
+      setActiveTabRaw("ticket-detail");
+      syncUrl("ticket-detail", id, user?.role);
+    }
   }, [user?.role]);
 
   // Handle browser back / forward

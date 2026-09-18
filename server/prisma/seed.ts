@@ -8,6 +8,11 @@ import { getPrisma } from "../src/prisma.js";
 async function main() {
   const prisma = getPrisma();
 
+  // Rebuild the test fixture so repeated E2E and API test runs are isolated.
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE TABLE "Attachment", "PublicComment", "InternalNote", "Ticket", "User", "Category", "RelatedSystem" RESTART IDENTITY CASCADE',
+  );
+
   // 1. Seed Categories (4)
   const categories = [
     "Account and Access",

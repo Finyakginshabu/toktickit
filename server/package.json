@@ -10,7 +10,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "seed": "tsx prisma/seed.ts",
-    "test": "vitest run"
+    "test": "npm run prisma:seed && vitest run",
+    "test:ci": "tsx prisma/seed.ts && vitest run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
