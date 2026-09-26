@@ -14,54 +14,54 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 
 ---
 
-## 2. Planned Tests Table
+## 2. Passed Tests Table
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **UNIT-01** | Unit | BR-06 | Password complexity & reuse validation utility | Validates $\ge 8$ chars, classes; rejects `new === current` | `server/tests/lab-03/unit/password-validator.test.ts` | Planned |
-| **UNIT-02** | Unit | BR-14 | Ticket status transition matrix evaluator | Returns valid for permitted jumps; returns false for invalid | `server/tests/lab-03/unit/status-transitions.test.ts` | Planned |
-| **UNIT-03** | Unit | BR-01 | Ticket number format generator | Formats numbers as `TKT-YYYY-XXXXXX` | `server/tests/lab-03/unit/ticket-number.test.ts` | Planned |
-| **UNIT-04** | Unit | BR-07, BR-13 | Role permission & ticket ownership evaluator | Accurately distinguishes Requester vs Staff vs Admin rights | `server/tests/lab-03/unit/permissions.test.ts` | Planned |
-| **API-01** | API | AC-01, FR-01, BR-01 | Valid user authentication | `200 OK`, valid JWT token and sanitized profile | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| **API-02** | API | AC-05, FR-02, BR-01 | Login with invalid credentials or inactive account | `401 Unauthorized` with safe generic error | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| **API-03** | API | AC-06, FR-04 | User logout invalidation | `200 OK`, subsequent protected calls return `401` | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| **API-04** | API | AC-02, FR-03, BR-02 | First-login password change | `200 OK`, `mustChangePassword` reset to `false` | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| **API-05** | API | AC-03, FR-06, BR-03 | Requester ticket ownership boundary | Requester can only access owned tickets | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| **API-06** | API | AC-04, FR-14, BR-16 | Requester attempts to access Internal Notes | `403 Forbidden`, no note data returned | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| **API-07** | API | AC-24, FR-15 | Non-Admin attempts to access user admin API | `403 Forbidden` | `server/tests/lab-03/authorization.api.test.ts` | Planned |
-| **API-08** | API | AC-10, FR-08, BR-19 | IT Staff Ticket Queue retrieval & filters | `200 OK`, paginated tickets with category/status filters | `server/tests/lab-03/staff-queue.api.test.ts` | Planned |
-| **API-09** | API | AC-11, FR-10 | Claim unassigned ticket by IT Staff | `200 OK`, `ticketOwnerId` set, status updated | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **API-10** | API | AC-12, FR-10 | Reassign ticket ownership to another staff | `200 OK`, new owner persisted | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **API-11** | API | AC-13, FR-11, BR-12 | Update IT Priority independently | `200 OK`, `itPriority` changed, `requestedPriority` unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **API-12** | API | AC-14, FR-12, BR-14 | Permitted status transition (OPEN $\to$ IN_PROGRESS) | `200 OK`, status updated | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **API-13** | API | AC-15, FR-12, BR-14 | Invalid status transition (NEW $\to$ CLOSED) | `400 Bad Request`, status transition rejected | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **API-14** | API | AC-09, FR-07, BR-05 | Requester indicates problem appears resolved | `200 OK`, `problemAppearsResolved = true` | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **API-15** | API | AC-16, FR-13, BR-15 | Post and retrieve Public Comments | `201 Created` / `200 OK`, comment visible to all | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
-| **API-16** | API | AC-17, FR-14, BR-15 | Post and retrieve Internal Notes | `201 Created` / `200 OK`, notes visible to staff only | `server/tests/lab-03/comments-notes.api.test.ts` | Planned |
-| **API-17** | API | AC-18, FR-15 | Admin lists users with search and filter | `200 OK`, user list matching criteria | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-18** | API | AC-19, FR-16, BR-07 | Admin creates new user with initial password | `201 Created`, `mustChangePassword = true` | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-19** | API | AC-20, FR-17, BR-11 | Admin edits user details (retaining own email) | `200 OK`, updated details saved without 409 conflict | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-20** | API | AC-21, FR-19, BR-08 | Admin attempts self-deactivation | `400 Bad Request`, operation blocked | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-21** | API | AC-22, FR-19, BR-09 | Admin deactivates last active Admin | `400 Bad Request`, operation blocked | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-22** | API | AC-23, FR-18, BR-17 | Admin resets user initial password | `200 OK`, `mustChangePassword = true` set | `server/tests/lab-03/users-admin.api.test.ts` | Planned |
-| **API-23** | API | AC-25, FR-06, BR-18 | Attachment upload on owned ticket using auth token | `201 Created`, attachment linked to ticket | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
-| **API-24** | API | AC-25, BR-18 | Upload 6th attachment when ticket has 5 active files | `400 Bad Request`, max 5 active attachments cap enforced | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
-| **API-25** | API | AC-25, BR-18 | Soft-remove attachment with valid reason | `200 OK`, `isRemoved = true`, reason recorded | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
-| **API-26** | API | AC-25, BR-18 | Download soft-removed attachment binary | `410 Gone`, download refused | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
-| **API-27** | API | AC-25, BR-03 | Cross-user attachment download attempt | `403 Forbidden` / `404 Not Found` | `server/tests/lab-03/attachments-regression.api.test.ts` | Planned |
-| **API-28** | API | AC-02, BR-02 | Direct API call with `mustChangePassword = true` | `403 Forbidden` (`PASSWORD_CHANGE_REQUIRED`) | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| **API-29** | API | BR-06 | Change password to same existing temporary password | `400 Bad Request` (`new === current` rejected) | `server/tests/lab-03/auth.api.test.ts` | Planned |
-| **API-30** | API | AC-12, BR-13 | Assign ticket owner to requester or inactive user | `400 Bad Request`, assignment rejected | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Planned |
-| **UI-01** | UI | AC-01, AC-05 | Login screen form validation and error states | Inline errors on empty inputs; generic alert on failure | `client/tests/lab-03/Login.test.tsx` | Planned |
-| **UI-02** | UI | AC-02, BR-02 | Change Password complexity checklist | Shows checklist satisfaction and enables submit | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
-| **UI-03** | UI | AC-07, FR-05 | Role-based header navigation rendering | Verifies distinct navigation tabs per user role | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
-| **UI-04** | UI | AC-10, FR-08 | Staff Ticket Queue filter, search, and pagination | Queue updates correctly on filter interactions | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
-| **UI-05** | UI | AC-11, AC-13 | Staff Ticket Detail ownership & priority controls | Claim button and priority change trigger correct states | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
-| **UI-06** | UI | AC-16, AC-17 | Comments vs Notes distinct visual rendering | Notes panel displayed with security warning styling | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
-| **UI-07** | UI | AC-18, AC-21 | Admin User Management table and safety modals | Deactivate button disabled on current user row | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-| **E2E-01** | E2E | AC-01, AC-02, AC-06 | Authentication & First Login Password Flow | Login $\to$ forced change $\to$ dashboard access $\to$ logout | `e2e/lab-03/authentication.spec.ts` | Planned |
-| **E2E-02** | E2E | AC-10, AC-11, AC-14 | IT Staff End-to-End Queue & Ticket Triage Flow | Queue view $\to$ claim ticket $\to$ prioritize $\to$ status | `e2e/lab-03/staff-ticket-flow.spec.ts` | Planned |
-| **E2E-03** | E2E | AC-18, AC-19, AC-23 | Administrator User Management Lifecycle Flow | Create user $\to$ reset password $\to$ verify login | `e2e/lab-03/user-administration.spec.ts` | Planned |
+| **UNIT-01** | Unit | BR-06 | Password complexity & reuse validation utility | Validates $\ge 8$ chars, classes; rejects `new === current` | `server/tests/lab-03/unit/password-validator.test.ts` | Passed |
+| **UNIT-02** | Unit | BR-14 | Ticket status transition matrix evaluator | Returns valid for permitted jumps; returns false for invalid | `server/tests/lab-03/unit/status-transitions.test.ts` | Passed |
+| **UNIT-03** | Unit | BR-01 | Ticket number format generator | Formats numbers as `TKT-YYYY-XXXXXX` | `server/tests/lab-03/unit/ticket-number.test.ts` | Passed |
+| **UNIT-04** | Unit | BR-07, BR-13 | Role permission & ticket ownership evaluator | Accurately distinguishes Requester vs Staff vs Admin rights | `server/tests/lab-03/unit/permissions.test.ts` | Passed |
+| **API-01** | API | AC-01, FR-01, BR-01 | Valid user authentication | `200 OK`, valid JWT token and sanitized profile | `server/tests/lab-03/auth.api.test.ts` | Passed |
+| **API-02** | API | AC-05, FR-02, BR-01 | Login with invalid credentials or inactive account | `401 Unauthorized` with safe generic error | `server/tests/lab-03/auth.api.test.ts` | Passed |
+| **API-03** | API | AC-06, FR-04 | User logout invalidation | `200 OK`, subsequent protected calls return `401` | `server/tests/lab-03/auth.api.test.ts` | Passed |
+| **API-04** | API | AC-02, FR-03, BR-02 | First-login password change | `200 OK`, `mustChangePassword` reset to `false` | `server/tests/lab-03/auth.api.test.ts` | Passed |
+| **API-05** | API | AC-03, FR-06, BR-03 | Requester ticket ownership boundary | Requester can only access owned tickets | `server/tests/lab-03/authorization.api.test.ts` | Passed |
+| **API-06** | API | AC-04, FR-14, BR-16 | Requester attempts to access Internal Notes | `403 Forbidden`, no note data returned | `server/tests/lab-03/authorization.api.test.ts` | Passed |
+| **API-07** | API | AC-24, FR-15 | Non-Admin attempts to access user admin API | `403 Forbidden` | `server/tests/lab-03/authorization.api.test.ts` | Passed |
+| **API-08** | API | AC-10, FR-08, BR-19 | IT Staff Ticket Queue retrieval & filters | `200 OK`, paginated tickets with category/status filters | `server/tests/lab-03/staff-queue.api.test.ts` | Passed |
+| **API-09** | API | AC-11, FR-10 | Claim unassigned ticket by IT Staff | `200 OK`, `ticketOwnerId` set, status updated | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **API-10** | API | AC-12, FR-10 | Reassign ticket ownership to another staff | `200 OK`, new owner persisted | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **API-11** | API | AC-13, FR-11, BR-12 | Update IT Priority independently | `200 OK`, `itPriority` changed, `requestedPriority` unchanged | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **API-12** | API | AC-14, FR-12, BR-14 | Permitted status transition (OPEN $\to$ IN_PROGRESS) | `200 OK`, status updated | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **API-13** | API | AC-15, FR-12, BR-14 | Invalid status transition (NEW $\to$ CLOSED) | `400 Bad Request`, status transition rejected | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **API-14** | API | AC-09, FR-07, BR-05 | Requester indicates problem appears resolved | `200 OK`, `problemAppearsResolved = true` | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **API-15** | API | AC-16, FR-13, BR-15 | Post and retrieve Public Comments | `201 Created` / `200 OK`, comment visible to all | `server/tests/lab-03/comments-notes.api.test.ts` | Passed |
+| **API-16** | API | AC-17, FR-14, BR-15 | Post and retrieve Internal Notes | `201 Created` / `200 OK`, notes visible to staff only | `server/tests/lab-03/comments-notes.api.test.ts` | Passed |
+| **API-17** | API | AC-18, FR-15 | Admin lists users with search and filter | `200 OK`, user list matching criteria | `server/tests/lab-03/users-admin.api.test.ts` | Passed |
+| **API-18** | API | AC-19, FR-16, BR-07 | Admin creates new user with initial password | `201 Created`, `mustChangePassword = true` | `server/tests/lab-03/users-admin.api.test.ts` | Passed |
+| **API-19** | API | AC-20, FR-17, BR-11 | Admin edits user details (retaining own email) | `200 OK`, updated details saved without 409 conflict | `server/tests/lab-03/users-admin.api.test.ts` | Passed |
+| **API-20** | API | AC-21, FR-19, BR-08 | Admin attempts self-deactivation | `400 Bad Request`, operation blocked | `server/tests/lab-03/users-admin.api.test.ts` | Passed |
+| **API-21** | API | AC-22, FR-19, BR-09 | Admin deactivates last active Admin | `400 Bad Request`, operation blocked | `server/tests/lab-03/users-admin.api.test.ts` | Passed |
+| **API-22** | API | AC-23, FR-18, BR-17 | Admin resets user initial password | `200 OK`, `mustChangePassword = true` set | `server/tests/lab-03/users-admin.api.test.ts` | Passed |
+| **API-23** | API | AC-25, FR-06, BR-18 | Attachment upload on owned ticket using auth token | `201 Created`, attachment linked to ticket | `server/tests/lab-03/attachments-regression.api.test.ts` | Passed |
+| **API-24** | API | AC-25, BR-18 | Upload 6th attachment when ticket has 5 active files | `400 Bad Request`, max 5 active attachments cap enforced | `server/tests/lab-03/attachments-regression.api.test.ts` | Passed |
+| **API-25** | API | AC-25, BR-18 | Soft-remove attachment with valid reason | `200 OK`, `isRemoved = true`, reason recorded | `server/tests/lab-03/attachments-regression.api.test.ts` | Passed |
+| **API-26** | API | AC-25, BR-18 | Download soft-removed attachment binary | `410 Gone`, download refused | `server/tests/lab-03/attachments-regression.api.test.ts` | Passed |
+| **API-27** | API | AC-25, BR-03 | Cross-user attachment download attempt | `403 Forbidden` / `404 Not Found` | `server/tests/lab-03/attachments-regression.api.test.ts` | Passed |
+| **API-28** | API | AC-02, BR-02 | Direct API call with `mustChangePassword = true` | `403 Forbidden` (`PASSWORD_CHANGE_REQUIRED`) | `server/tests/lab-03/auth.api.test.ts` | Passed |
+| **API-29** | API | BR-06 | Change password to same existing temporary password | `400 Bad Request` (`new === current` rejected) | `server/tests/lab-03/auth.api.test.ts` | Passed |
+| **API-30** | API | AC-12, BR-13 | Assign ticket owner to requester or inactive user | `400 Bad Request`, assignment rejected | `server/tests/lab-03/staff-ticket-detail.api.test.ts` | Passed |
+| **UI-01** | UI | AC-01, AC-05 | Login screen form validation and error states | Inline errors on empty inputs; generic alert on failure | `client/tests/lab-03/Login.test.tsx` | Passed |
+| **UI-02** | UI | AC-02, BR-02 | Change Password complexity checklist | Shows checklist satisfaction and enables submit | `client/tests/lab-03/ChangePassword.test.tsx` | Passed |
+| **UI-03** | UI | AC-07, FR-05 | Role-based header navigation rendering | Verifies distinct navigation tabs per user role | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Passed |
+| **UI-04** | UI | AC-10, FR-08 | Staff Ticket Queue filter, search, and pagination | Queue updates correctly on filter interactions | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Passed |
+| **UI-05** | UI | AC-11, AC-13 | Staff Ticket Detail ownership & priority controls | Claim button and priority change trigger correct states | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Passed |
+| **UI-06** | UI | AC-16, AC-17 | Comments vs Notes distinct visual rendering | Notes panel displayed with security warning styling | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Passed |
+| **UI-07** | UI | AC-18, AC-21 | Admin User Management table and safety modals | Deactivate button disabled on current user row | `client/tests/lab-03/UserManagement.test.tsx` | Passed |
+| **E2E-01** | E2E | AC-01, AC-02, AC-06 | Authentication & First Login Password Flow | Login $\to$ forced change $\to$ dashboard access $\to$ logout | `e2e/lab-03/authentication.spec.ts` | Passed |
+| **E2E-02** | E2E | AC-10, AC-11, AC-14 | IT Staff End-to-End Queue & Ticket Triage Flow | Queue view $\to$ claim ticket $\to$ prioritize $\to$ status | `e2e/lab-03/staff-ticket-flow.spec.ts` | Passed |
+| **E2E-03** | E2E | AC-18, AC-19, AC-23 | Administrator User Management Lifecycle Flow | Create user $\to$ reset password $\to$ verify login | `e2e/lab-03/user-administration.spec.ts` | Passed |
 
 ---
 
@@ -99,14 +99,14 @@ The verification strategy for Lab 3 tests security, role isolation, regression, 
 
 ## 4. Responsive & Visual Checklist
 
-* [ ] **Design Consistency**: Verified Zen Green color tokens across header, buttons, cards, and text.
-* [ ] **Role Navigation**: Navigation bar shows only permitted items for Requester, IT Staff, and Admin.
-* [ ] **Badge Consistency**: Status, Priority, and Role badges conform to color and typography rules.
-* [ ] **Field Styling**: Clear visual distinction between editable (white) and read-only (soft ivory/gray-green) inputs.
-* [ ] **Validation Placement**: Inline error messages appear directly below their associated input fields.
-* [ ] **Focus & Accessibility**: Focus rings visible on keyboard tab navigation; buttons have high contrast.
-* [ ] **No Clipping or Overlap**: Text labels, badges, and modals do not clip or overlap across viewport sizes.
-* [ ] **Horizontal Overflow**: Zero horizontal scrollbars on Desktop ($\ge 992\text{px}$), Tablet ($768\text{px} - 991\text{px}$), and Mobile ($< 768\text{px}$).
+* [x] **Design Consistency**: Verified Zen Green color tokens across header, buttons, cards, and text.
+* [x] **Role Navigation**: Navigation bar shows only permitted items for Requester, IT Staff, and Admin.
+* [x] **Badge Consistency**: Status, Priority, and Role badges conform to color and typography rules.
+* [x] **Field Styling**: Clear visual distinction between editable (white) and read-only (soft ivory/gray-green) inputs.
+* [x] **Validation Placement**: Inline error messages appear directly below their associated input fields.
+* [x] **Focus & Accessibility**: Focus rings visible on keyboard tab navigation; buttons have high contrast.
+* [x] **No Clipping or Overlap**: Text labels, badges, and modals do not clip or overlap across viewport sizes.
+* [x] **Horizontal Overflow**: Zero horizontal scrollbars on Desktop ($\ge 992\text{px}$), Tablet ($768\text{px} - 991\text{px}$), and Mobile ($< 768\text{px}$).
 
 ---
 
