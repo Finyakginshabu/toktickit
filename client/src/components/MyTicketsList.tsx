@@ -111,12 +111,16 @@ export default function MyTicketsList() {
   };
 
   const formatStatusBadge = (s: TicketStatus) => {
-    const classMap: Record<TicketStatus, string> = {
+    const classMap: Partial<Record<TicketStatus, string>> = {
       NEW: "badge-status-new",
+      OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
+      WAITING_FOR_REQUESTER: "badge-status-waiting",
       PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
+      REOPENED: "badge-status-reopened",
+      CANCELLED: "badge-status-cancelled",
     };
     const label = s.replace("_", " ");
     return <span className={`badge ${classMap[s] || "bg-secondary"}`}>{label}</span>;
@@ -368,7 +372,7 @@ export default function MyTicketsList() {
                     key={t.id}
                     onClick={() => {
                       setSelectedTicketId(t.id);
-                      setActiveTab("ticket-detail");
+                      setActiveTab("ticket-detail", t.id);
                     }}
                     role="button"
                     tabIndex={0}
@@ -376,7 +380,7 @@ export default function MyTicketsList() {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         setSelectedTicketId(t.id);
-                        setActiveTab("ticket-detail");
+                        setActiveTab("ticket-detail", t.id);
                       }
                     }}
                   >
@@ -387,7 +391,7 @@ export default function MyTicketsList() {
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTicketId(t.id);
-                          setActiveTab("ticket-detail");
+                          setActiveTab("ticket-detail", t.id);
                         }}
                       >
                         {t.ticketNumber}
@@ -431,13 +435,13 @@ export default function MyTicketsList() {
                 tabIndex={0}
                 onClick={() => {
                   setSelectedTicketId(t.id);
-                  setActiveTab("ticket-detail");
+                  setActiveTab("ticket-detail", t.id);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     setSelectedTicketId(t.id);
-                    setActiveTab("ticket-detail");
+                    setActiveTab("ticket-detail", t.id);
                   }
                 }}
               >

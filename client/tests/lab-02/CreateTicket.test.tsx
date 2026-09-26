@@ -32,6 +32,18 @@ describe("Lab 2 Create Ticket Suite (client/tests/lab-02/CreateTicket.test.tsx)"
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    localStorage.setItem("toktickit_auth_token", "mock-valid-token");
+    localStorage.setItem(
+      "toktickit_auth_user",
+      JSON.stringify({
+        id: 1,
+        name: "Jennifer Anderson",
+        email: "jennifer.anderson@kmutt.ac.th",
+        role: "REQUESTER",
+        mustChangePassword: false,
+        department: "Computer Engineering",
+      })
+    );
     vi.spyOn(api, "getRequesters").mockResolvedValue(mockActiveRequesters);
     vi.spyOn(api, "getCategories").mockResolvedValue(mockCategories);
     vi.spyOn(api, "getRelatedSystems").mockResolvedValue(mockRelatedSystems);
@@ -41,41 +53,8 @@ describe("Lab 2 Create Ticket Suite (client/tests/lab-02/CreateTicket.test.tsx)"
     });
   });
 
-  // UI-01: Development Requester selector on initial load
-  it("renders Development Requester selector on initial load with active users (UI-01, AC-07, AC-08)", async () => {
-    render(<App />);
-
-    expect(await screen.findByText(/Select Development Requester/i)).toBeInTheDocument();
-    expect(screen.getByText(/Lab 2 Development Mode:/i)).toBeInTheDocument();
-
-    const dropdown = await screen.findByRole("combobox");
-    expect(dropdown).toBeInTheDocument();
-    expect(screen.getByText(/Jennifer Anderson \(Computer Engineering\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/David Lee \(Information Technology\)/i)).toBeInTheDocument();
-  });
-
-  // UI-02: Select user & persist in localStorage
-  it("selecting a requester updates header and stores in localStorage (UI-02, AC-09)", async () => {
-    render(<App />);
-
-    const dropdown = await screen.findByRole("combobox");
-    fireEvent.change(dropdown, { target: { value: "2" } });
-
-    const continueBtn = screen.getByRole("button", { name: /Continue/i });
-    fireEvent.click(continueBtn);
-
-    await waitFor(() => {
-      expect(screen.queryByText(/Select Development Requester/i)).not.toBeInTheDocument();
-    });
-
-    expect(screen.getAllByText("David Lee").length).toBeGreaterThan(0);
-    expect(screen.getByText("Information Technology")).toBeInTheDocument();
-    expect(localStorage.getItem("toktickit_dev_requester_id")).toBe("2");
-  });
-
   // Helper to open Create Ticket tab with active user selected
   async function setupCreateTicketView() {
-    localStorage.setItem("toktickit_dev_requester_id", "1");
     render(<App />);
 
     // Wait for header to display Jennifer

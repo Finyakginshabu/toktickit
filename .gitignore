@@ -16,7 +16,4 @@ docs/issues
 # uploads
 server/uploads/
 uploads/
-# test artifacts & reports
-test-results/
-playwright-report/
-
+

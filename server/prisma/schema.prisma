@@ -11,8 +11,14 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Lab 2 Enums
+// Lab 3 Enums
 // ---------------------------------------------------------------------------
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
 enum Priority {
   LOW
   MEDIUM
@@ -22,25 +28,37 @@ enum Priority {
 
 enum TicketStatus {
   NEW
+  OPEN
   IN_PROGRESS
-  PENDING
+  WAITING_FOR_REQUESTER
   RESOLVED
   CLOSED
+  REOPENED
+  CANCELLED
 }
 
 // ---------------------------------------------------------------------------
-// Lab 2 Models
+// Lab 3 Models
 // ---------------------------------------------------------------------------
-model RequesterUser {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String   @unique
-  department String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  tickets    Ticket[]
+model User {
+  id                 Int              @id @default(autoincrement())
+  email              String           @unique
+  name               String
+  passwordHash       String
+  role               Role             @default(REQUESTER)
+  isActive           Boolean          @default(true)
+  mustChangePassword Boolean          @default(false)
+  department         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
-  @@index([isActive])
+  requestedTickets   Ticket[]         @relation("TicketRequester")
+  assignedTickets    Ticket[]         @relation("TicketOwner")
+  publicComments     PublicComment[]
+  internalNotes      InternalNote[]
+
+  @@index([email])
+  @@index([role, isActive])
 }
 
 model Category {
@@ -61,28 +79,35 @@ model RelatedSystem {
 }
 
 model Ticket {
-  id                 Int           @id @default(autoincrement())
-  ticketNumber       String        @unique
-  requesterId        Int
-  categoryId         Int
-  relatedSystemId    Int
-  summary            String        @db.VarChar(100)
-  description        String        @db.VarChar(2000)
-  requestedPriority  Priority      @default(MEDIUM)
-  itPriority         Priority      @default(MEDIUM)
-  currentStatus      TicketStatus  @default(NEW)
-  ticketOwnerId      Int?
-  resolutionSummary  String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                        Int             @id @default(autoincrement())
+  ticketNumber              String          @unique
+  requesterId               Int
+  categoryId                Int
+  relatedSystemId           Int
+  summary                   String          @db.VarChar(100)
+  description               String          @db.VarChar(2000)
+  requestedPriority         Priority        @default(MEDIUM)
+  itPriority                Priority        @default(MEDIUM)
+  currentStatus             TicketStatus    @default(NEW)
+  ticketOwnerId             Int?
+  resolutionSummary         String?
+  problemAppearsResolved    Boolean         @default(false)
+  problemAppearsResolvedAt  DateTime?
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
 
-  requester          RequesterUser @relation(fields: [requesterId], references: [id])
-  category           Category      @relation(fields: [categoryId], references: [id])
-  relatedSystem      RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  attachments        Attachment[]
+  requester                 User            @relation("TicketRequester", fields: [requesterId], references: [id])
+  ticketOwner               User?           @relation("TicketOwner", fields: [ticketOwnerId], references: [id])
+  category                  Category        @relation(fields: [categoryId], references: [id])
+  relatedSystem             RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
+  attachments               Attachment[]
+  publicComments            PublicComment[]
+  internalNotes             InternalNote[]
 
   @@index([requesterId, createdAt])
   @@index([currentStatus])
+  @@index([itPriority])
+  @@index([ticketOwnerId])
   @@index([ticketNumber])
 }
 
@@ -102,4 +127,30 @@ model Attachment {
   ticket        Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, isRemoved])
+}
+
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  content   String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  content   String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
 }
