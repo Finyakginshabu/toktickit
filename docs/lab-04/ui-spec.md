@@ -132,12 +132,17 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
     3. **In Progress**: Total tickets with `currentStatus = IN_PROGRESS`.
     4. **Waiting for Requester**: Total tickets with `currentStatus = WAITING_FOR_REQUESTER`.
     5. **My Assigned**: Total active tickets where `ticketOwnerId = me`.
+  * **Daily Velocity Delta Display (§6.2 & Handout Page 5)**:
+    * Rendered immediately beneath the main numeric count on each primary card:
+      * **Positive Trend ($\Delta > 0$)**: Formatted as `+N from yesterday` in emerald green (`#22543D`, `--color-success`), `font-weight: 500`, `font-size: 0.8125rem` (13px), with small upward indicator `▲`.
+      * **Negative Trend ($\Delta < 0$)**: Formatted as `-N from yesterday` in muted steel blue (`#2B6CB0`), `font-weight: 500`, `font-size: 0.8125rem` (13px), with small downward indicator `▼`.
+      * **Neutral / Zero ($\Delta = 0$)**: Formatted as `0 from yesterday` in muted gray (`#5C6F64`, `--color-text-muted`), `font-size: 0.8125rem` (13px).
   * Secondary indicators bar:
     * **Unassigned Tickets**: Count highlighted with amber warning icon.
     * **High / Urgent Priority**: Count highlighted with crimson indicator.
     * **My Open Actions**: Count of active actions assigned to or performed by the current staff member (`myOpenActionsCount`).
   * **Card Interaction & Drill-Down**:
-    * Each card has an accessible ARIA label (e.g. `aria-label="New tickets: 14. Click to view list"`).
+    * Each card has an accessible ARIA label (e.g. `aria-label="New tickets: 14, +1 from yesterday. Click to view list"`).
     * Clicking any card routes to the Ticket Queue with filter pre-selected (e.g. clicking *My Assigned* navigates to `/staff/queue?ownerId=me`).
 * **Main Content Split (2:1 Ratio)**:
   * **Left Column - "Recent Tickets"**:
@@ -151,10 +156,16 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
       * `Search Tickets`: Navigates to queue with search focused.
       * `My Queue`: Pre-filters queue to tickets owned by current user.
       * `Unassigned Queue`: Pre-filters queue to unassigned tickets.
-* **Dashboard States**:
-  * **Loading**: Metric card skeletons with pulsing animation.
-  * **Empty State**: Zero metrics display `0` with helpful explanatory cue.
-  * **Safe Failure**: Alert banner if backend is unreachable with a "Retry" button.
+* **Dashboard States (§8.1 Mandatory States)**:
+  * **Loading**: Metric card skeletons with pulsing shimmer animation; table displays 5 placeholder skeleton rows.
+  * **Empty State**: Zero metrics display `0` with neutral trend `0 from yesterday` and helpful queue-cleared text ("All caught up! No open tickets in this queue.").
+  * **Forbidden State (403)**:
+    * Displayed when a user without IT Staff or Administrator roles attempts to view `/staff/dashboard` or `/admin/dashboard`.
+    * Centered card container with slate lock icon (`lock` from Material Symbols, color `#4A5568`).
+    * Title: "403 - Access Forbidden" (`font-size: 1.5rem`, `font-weight: 700`, `--color-text-main`).
+    * Message: "You do not have the required permissions to view this operational dashboard. Access is restricted to authorized IT Staff and Administrators."
+    * Action Button: Primary green button "Return to My Dashboard" (`.btn-zen-primary`) navigating back to `/dashboard`.
+  * **Safe Failure**: Alert banner if backend is unreachable with a "Retry" button. Form inputs and active filters are preserved.
 
 ### 4.2. Requester Dashboard Screen (`RequesterDashboard.tsx`)
 *(Reference: SE Lab 4 Handout Figure on Page 6)*
@@ -284,3 +295,19 @@ Screenshots for final grading submission will be placed in `artifacts/lab-04/scr
    * `action-taken-edit-modal.png`: Edit modal changing action status.
    * `resolution-gate-blocked.png`: Resolution Gate blocking alert modal with checklist.
    * `requester-actions-view.png`: Requester read-only view.
+
+---
+
+## 8. Removal of Temporary, Duplicate & Obsolete UI Elements (§7 & §8.5)
+
+To guarantee a clean, professional production appearance as required by §7 and §8.5 of the Handout, the following checklist items are verified and enforced:
+
+| Item ID | Category | Specific Element / Behavior | Verification Criteria |
+| :--- | :--- | :--- | :--- |
+| **CLEAN-01** | Dev Controls | Dev Requester Context Switcher / Toolbar | Any temporary dev user switchers from Labs 1–2 are removed from production screens; role switching is strictly handled via real login/logout session flow. |
+| **CLEAN-02** | Redundant Elements | Duplicate Ticket Status Displays | Ensure Ticket Detail renders only one canonical Status Badge in the header; remove duplicate status cards or redundant action logs. |
+| **CLEAN-03** | Placeholder Content | Placeholder texts & "Lorem Ipsum" | All placeholder strings, mock JSON blobs, and fake sample labels are eliminated in favor of real database-driven entity fields. |
+| **CLEAN-04** | Dead Controls | Unfinished buttons & dead links | All controls with `href="#"`, `href="javascript:void(0)"`, or non-functional `onClick` stubs are removed or linked to active routes. |
+| **CLEAN-05** | Form Clutter | Unused input fields | Form inputs not defined in the Sprint 4 contract are pruned to avoid confusing users. |
+| **CLEAN-06** | Navigation Consistency | AppHeader navigation tabs | Canonical tabs match the authenticated user's exact role (no extraneous tabs or broken paths). |
+| **CLEAN-07** | Console Hygiene | Uncaught console errors / warnings | Zero uncaught runtime errors, unhandled promise rejections, or React duplicate-key warnings during page transitions. |

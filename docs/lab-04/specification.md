@@ -64,8 +64,9 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
 4. Time-sheet billing, payroll, or detailed labor-cost calculations.
 5. Multi-level approval workflows and electronic signatures.
 6. Advanced business-intelligence tools, custom report builders, or export warehouses.
-7. Multi-tenant organizations and production cloud infrastructure.
-8. Permanent user hard deletion, bulk user operations, and profile avatar management.
+7. Multi-tenant organizations and production-scale cloud operations.
+8. New product features not approved in the Sprint 4 engineering contract.
+9. Permanent user hard deletion, bulk user operations, and profile avatar management.
 
 ---
 
@@ -136,6 +137,28 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
     * `CANCELLED` $\to$ Terminal
   * Hard deletion is prohibited; cancellation is performed via status `CANCELLED`.
 
+### Authorization Matrix (Operation × Role) (§4.3)
+As mandated by §4.3 of the Handout, the backend strictly enforces authorization on every endpoint and operation. Hiding UI controls is never considered authorization.
+
+| Operation / Action | Endpoint & Method | REQUESTER | IT_STAFF | ADMINISTRATOR | Backend Enforcement & Failure Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **View Actions Taken (Owned Ticket)** | `GET /api/tickets/:id/actions` | Allowed (Read-only, emails hidden) | Allowed | Allowed | Returns `200 OK` with action lines in stable order (`actionDateTime ASC, id ASC`). |
+| **View Actions Taken (Unowned Ticket)** | `GET /api/tickets/:id/actions` | **Denied** (`404 Not Found`) | Allowed | Allowed | `404 Not Found` returned to Requesters to avoid leaking ticket existence across ownership boundaries. |
+| **Create Action Taken** | `POST /api/tickets/:id/actions` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Auto-assigns `performedById = auth.userId`. Rejects inactive assignees with `400 Bad Request`. Closed/cancelled tickets reject with `400 Bad Request`. |
+| **Edit / Update Action Taken** | `PATCH /api/tickets/:id/actions/:actionId` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Checks `expectedVersion` against database version (`409 Conflict` if mismatch). Closed/cancelled tickets reject with `400 Bad Request`. |
+| **Resolve Action Follow-Up** | `PATCH /api/tickets/:id/actions/:actionId` (`resolveFollowUp: true`) | **Denied** (`403 Forbidden`) | Allowed | Allowed | Stamps `followUpResolvedAt = now()`. Preserves historical `followUpNote`. |
+| **Cancel Action Taken** | `POST /api/tickets/:id/actions/:actionId/cancel` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Sets status to `CANCELLED`. Hard deletion is strictly prohibited. |
+| **Advance Active Ticket Status** | `PATCH /api/staff/tickets/:id/status` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Validates permitted transitions per `BR-08`. Returns `400 Bad Request` on illegal status jumps. |
+| **Resolve Ticket (`status: RESOLVED`)** | `PATCH /api/staff/tickets/:id/status` | **Denied** (`403 Forbidden`) | Allowed (Subject to Gate) | Allowed (Subject to Gate) | **Enforces Resolution Gate (BR-09)**. Rejects with `400 Bad Request` (`RESOLUTION_GATE_BLOCKED`) if criteria unmet. |
+| **Close Ticket (`status: CLOSED`)** | `PATCH /api/staff/tickets/:id/status` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Permitted from `RESOLVED` status. Legacy resolved tickets grandfathered. |
+| **Reopen Ticket (`status: REOPENED`)** | `PATCH /api/staff/tickets/:id/status` or `PATCH /api/tickets/:id/reopen` | Allowed (Owned `RESOLVED` tickets only) | Allowed | Allowed | Requesters can reopen owned resolved tickets. Staff/Admin can reopen resolved or closed tickets. |
+| **Cancel Ticket (`status: CANCELLED`)** | `PATCH /api/staff/tickets/:id/status` or `PATCH /api/tickets/:id/cancel` | Allowed (Owned `NEW` tickets only) | Allowed | Allowed | Requesters can only cancel their own tickets while still `NEW`. Staff/Admin can cancel active tickets. |
+| **Indicate Problem Appears Resolved** | `POST /api/tickets/:id/indicate-resolved` | Allowed (Owned tickets only) | **Denied** (`403 Forbidden`) | **Denied** (`403 Forbidden`) | Purely advisory. Stamps flag/timestamp and logs audit comment. Does NOT advance status or satisfy Resolution Gate. |
+| **View Requester Dashboard** | `GET /api/dashboard/requester` | Allowed (Owned tickets only) | Allowed | Allowed | Returns metrics and recent tickets scoped strictly to the authenticated requester. |
+| **View IT Staff Dashboard** | `GET /api/dashboard/staff` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Returns operational queues, open actions, and recent tickets across all tickets. |
+| **View Admin Dashboard** | `GET /api/dashboard/admin` | **Denied** (`403 Forbidden`) | **Denied** (`403 Forbidden`) | Allowed | Returns IT Staff operational metrics plus user account management statistics. |
+| **Admin User Management** | `GET, POST, PATCH /api/admin/users*` | **Denied** (`403 Forbidden`) | **Denied** (`403 Forbidden`) | Allowed | Full user administration, role assignment, active/inactive toggle, and password resets. |
+
 ### Ticket Status & Workflow Rules
 * **BR-08 (Permitted Ticket Status Transition & Authorization Matrix)**:
   | From Status | Permitted Next Status | Authorized Roles | Business Condition / Gate |
@@ -174,26 +197,43 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
 * **BR-11 (Optimistic Concurrency Control)**:
   Ticket and Action updates submit `expectedVersion` (or `expectedUpdatedAt`). If the database record version has advanced, the backend rejects the request with `409 Conflict` and returns the latest record state. Status transitions and gate checks run in an atomic database transaction.
 
-### Dashboard Calculation Rules
+### Dashboard Calculation & Timezone Rules (§6.2)
+* **Authoritative Timezone & Timestamp Standards**:
+  * **Application Timezone**: `Asia/Bangkok` (UTC+07:00). All calendar date boundaries ("today", "yesterday", start-of-day) are evaluated in `Asia/Bangkok`.
+  * **Wire Protocol Format**: All JSON timestamps are serialized as ISO 8601 UTC strings with millisecond precision (e.g. `2026-10-01T14:30:00.000Z`).
+  * **"Today" Date Boundary**: From `00:00:00.000` to `23:59:59.999` `Asia/Bangkok` (converted to UTC equivalent for database SQL filtering).
+  * **"Yesterday" Date Boundary**: From `00:00:00.000` to `23:59:59.999` `Asia/Bangkok` of the immediately preceding calendar day.
+  * **"From Yesterday" Delta Calculation**:
+    For each operational metric card on the IT Staff Dashboard, the system computes the change relative to yesterday:
+    $$\Delta = \text{Count as of Today} - \text{Count as of Yesterday at same cutoff / end-of-day}$$
+    Returned in the API as `deltaFromYesterday: number` (e.g. `+1`, `-2`, `0`). The UI displays this as:
+    * Positive ($\Delta > 0$): `+N from yesterday` in emerald green (`#22543D`).
+    * Negative ($\Delta < 0$): `-N from yesterday` in muted steel blue (`#2B6CB0`).
+    * Zero ($\Delta = 0$): `0 from yesterday` in neutral gray (`#5C6F64`).
+  * **"Recently Updated" Date Boundary**:
+    `recentTickets` returns up to 5 tickets ordered by `updatedAt DESC` that were updated within the last 30 calendar days (`updatedAt >= now() - INTERVAL '30 days'` in `Asia/Bangkok`). If fewer than 5 tickets exist in the last 30 days, returns all available tickets up to 5.
+  * **"Recently Resolved" Date Boundary**:
+    `resolvedTickets` counts tickets where `currentStatus = 'RESOLVED'` and `resolvedAt >= now() - INTERVAL '30 days'` in `Asia/Bangkok`.
+
 * **BR-12 (Requester Dashboard Metrics)**:
   Calculated across tickets where `requesterId = auth.userId`:
   * `myOpenTickets`: `currentStatus` $\in$ {`NEW`, `OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `REOPENED`}.
   * `inProgressTickets`: `currentStatus = IN_PROGRESS`.
-  * `resolvedTickets`: `currentStatus = RESOLVED`.
+  * `resolvedTickets`: `currentStatus = RESOLVED` (resolved within the 30-day window).
   * `closedTickets`: `currentStatus = CLOSED`.
   * `waitingForRequesterTickets`: `currentStatus = WAITING_FOR_REQUESTER`.
-  * `recentTickets`: Up to 5 tickets owned by user ordered by `updatedAt DESC`.
+  * `recentTickets`: Up to 5 tickets owned by user ordered by `updatedAt DESC` within 30 days. Empty array `[]` if none.
 * **BR-13 (IT Staff Dashboard Metrics)**:
   Calculated across all tickets system-wide:
-  * `newTickets`: `currentStatus = NEW`.
-  * `openTickets`: `currentStatus = OPEN`.
-  * `inProgressTickets`: `currentStatus = IN_PROGRESS`.
-  * `waitingForRequesterTickets`: `currentStatus = WAITING_FOR_REQUESTER`.
-  * `myAssignedTickets`: `ticketOwnerId = auth.userId` AND `currentStatus` NOT IN {`RESOLVED`, `CLOSED`, `CANCELLED`}.
+  * `newTickets`: `currentStatus = NEW` with `deltaFromYesterday`.
+  * `openTickets`: `currentStatus = OPEN` with `deltaFromYesterday`.
+  * `inProgressTickets`: `currentStatus = IN_PROGRESS` with `deltaFromYesterday`.
+  * `waitingForRequesterTickets`: `currentStatus = WAITING_FOR_REQUESTER` with `deltaFromYesterday`.
+  * `myAssignedTickets`: `ticketOwnerId = auth.userId` AND `currentStatus` NOT IN {`RESOLVED`, `CLOSED`, `CANCELLED`} with `deltaFromYesterday`.
   * `unassignedTickets`: `ticketOwnerId IS NULL` AND `currentStatus` NOT IN {`RESOLVED`, `CLOSED`, `CANCELLED`}.
   * `highUrgentTickets`: `itPriority` $\in$ {`HIGH`, `URGENT`} AND `currentStatus` NOT IN {`RESOLVED`, `CLOSED`, `CANCELLED`}.
   * `myOpenActionsCount`: Count of actions where (`performedById = auth.userId` OR `assigneeId = auth.userId`) AND `status` $\in$ {`PENDING`, `IN_PROGRESS`}.
-  * `recentTickets`: Up to 5 tickets system-wide ordered by `updatedAt DESC`.
+  * `recentTickets`: Up to 5 tickets system-wide ordered by `updatedAt DESC` within 30 days.
 * **BR-14 (Administrator Dashboard Metrics)**:
   Includes all IT Staff metrics from `BR-13`, plus user account statistics:
   * `totalUsers`: Count of all users.
@@ -449,8 +489,11 @@ Before the Lab 4 increment is declared complete:
    * Verified on Desktop ($\ge 992\text{px}$), Tablet ($768 - 991\text{px}$), and Mobile ($< 768\text{px}$).
    * No horizontal window scrolling; table scrolls encapsulated within container.
    * Form inputs preserve state on recoverable API failures.
-4. **Documentation & Traceability**:
+   * Complete 4-state UI feedback implemented: loading skeletons, zero-count empty states, 403 forbidden state, and safe API failure recovery (§8.1).
+   * All console errors, broken links, placeholder text, unfinished controls, and duplicate/obsolete UI elements from earlier labs are completely removed (§7 & §8.5).
+4. **Documentation, Repository Integrity & Traceability**:
    * `specification.md`, `ui-spec.md`, `api-spec.md`, and `tests.md` are completely aligned with 100% bi-directional traceability.
+   * Root and module `README.md` setup, seed, migration, test, and demonstration instructions are verified, fully working, and current (§8.5).
    * Screenshots captured and placed in `artifacts/lab-04/screenshots/`.
 
 ---

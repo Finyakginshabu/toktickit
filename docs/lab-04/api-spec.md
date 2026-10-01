@@ -221,6 +221,13 @@
       "highUrgentTickets": 11,
       "myOpenActionsCount": 4
     },
+    "deltas": {
+      "newTickets": 1,
+      "openTickets": -2,
+      "inProgressTickets": -1,
+      "waitingForRequesterTickets": 1,
+      "myAssignedTickets": 1
+    },
     "drillDownUrls": {
       "newTickets": "/staff/queue?status=NEW",
       "openTickets": "/staff/queue?status=OPEN",
@@ -254,7 +261,8 @@
   * `unassignedTickets`: `Ticket.count({ where: { ticketOwnerId: null, currentStatus: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] } } })`
   * `highUrgentTickets`: `Ticket.count({ where: { itPriority: { in: ['HIGH', 'URGENT'] }, currentStatus: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] } } })`
   * `myOpenActionsCount`: `ActionTaken.count({ where: { OR: [{ performedById: auth.userId }, { assigneeId: auth.userId }], status: { in: ['PENDING', 'IN_PROGRESS'] } } })`
-  * `recentTickets`: Top 5 tickets system-wide ordered by `updatedAt DESC`.
+  * `deltas`: For each primary card, computes `countToday - countYesterday` evaluated at midnight `Asia/Bangkok` boundaries.
+  * `recentTickets`: Top 5 tickets system-wide ordered by `updatedAt DESC` updated within the last 30 calendar days. Empty array `[]` if none.
 
 ---
 
@@ -378,17 +386,98 @@
 
 ---
 
-## 5. Continued APIs from Labs 1, 2, and 3
+## 5. System Health, Validation & Continued APIs (Labs 1–3)
 
-The following endpoints remain fully operational and tested under regression:
-* `GET /api/health`
-* `GET /api/categories`
-* `GET /api/related-systems`
-* `GET /api/requesters`
-* `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `POST /api/auth/change-password`
-* `GET /api/tickets`, `POST /api/tickets`, `GET /api/tickets/:id`
-* `POST /api/tickets/:id/attachments`, `GET /api/tickets/:id/attachments/:attachmentId`, `DELETE /api/tickets/:id/attachments/:attachmentId`
-* `GET /api/tickets/:id/comments`, `POST /api/tickets/:id/comments`
-* `GET /api/tickets/:id/notes`, `POST /api/tickets/:id/notes`
-* `GET /api/staff/tickets`, `PATCH /api/staff/tickets/:id/claim`, `PATCH /api/staff/tickets/:id/assign`, `PATCH /api/staff/tickets/:id/priority`
-* `GET /api/admin/users`, `POST /api/admin/users`, `PATCH /api/admin/users/:id`, `POST /api/admin/users/:id/reset-password`
+### 5.1. `GET /api/health`
+* **Description**: Primary liveness probe and database connectivity health check used for deployment validation and regression verification.
+* **Authorization**: Public (No auth header required).
+* **Success Response (`200 OK`)**:
+  ```json
+  {
+    "status": "ok",
+    "timestamp": "2026-10-01T14:30:00.000Z",
+    "uptime": 12450.32,
+    "version": "1.4.0",
+    "database": {
+      "status": "connected",
+      "latencyMs": 3
+    }
+  }
+  ```
+* **Failure Response (`503 Service Unavailable`)**:
+  ```json
+  {
+    "status": "error",
+    "timestamp": "2026-10-01T14:30:00.000Z",
+    "error": {
+      "code": "DATABASE_UNAVAILABLE",
+      "message": "Unable to connect to PostgreSQL database."
+    },
+    "database": {
+      "status": "disconnected"
+    }
+  }
+  ```
+
+### 5.2. Continued Regression Endpoints
+The following endpoints from Labs 1, 2, and 3 remain fully supported, validated, and covered by automated regression suites:
+* **Lab 1 Foundation**:
+  * `GET /api/health`: System status probe.
+  * `GET /api/categories`: Category taxonomy listing.
+  * `GET /api/related-systems`: Reference integration listing.
+  * `GET /api/requesters`: Dev requester fixture listing.
+* **Lab 2 Ticket Submission & Attachments**:
+  * `GET /api/tickets`: Paginated ticket retrieval for authenticated user.
+  * `POST /api/tickets`: Multipart/form-data ticket creation with attachments and validation.
+  * `GET /api/tickets/:id`: Ticket detail view with category, requester, status history, and attachments.
+  * `POST /api/tickets/:id/attachments`: Upload attachment (PNG, JPG, PDF; size $\le 5\text{MB}$).
+  * `GET /api/tickets/:id/attachments/:attachmentId`: Download file stream.
+  * `DELETE /api/tickets/:id/attachments/:attachmentId`: Soft-delete attachment.
+* **Lab 3 Authentication, RBAC, Queue & Admin**:
+  * `POST /api/auth/login`: Issue signed JWT token.
+  * `POST /api/auth/logout`: Revoke active session / clear cookie.
+  * `GET /api/auth/me`: Authenticated profile and role info.
+  * `POST /api/auth/change-password`: First-login or user-initiated password update.
+  * `GET /api/tickets/:id/comments`: Public requester-staff communication thread.
+  * `POST /api/tickets/:id/comments`: Add public comment.
+  * `GET /api/tickets/:id/notes`: Restricted internal staff notes.
+  * `POST /api/tickets/:id/notes`: Add restricted internal note.
+  * `GET /api/staff/tickets`: IT Staff unified queue with search and status/priority filters.
+  * `PATCH /api/staff/tickets/:id/claim`: Claim unassigned ticket (`ticketOwnerId = auth.userId`).
+  * `PATCH /api/staff/tickets/:id/assign`: Assign ticket to another active IT Staff member.
+  * `PATCH /api/staff/tickets/:id/priority`: Set operational priority (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
+  * `GET /api/admin/users`: User directory with role and status filtering.
+  * `POST /api/admin/users`: Create user account.
+  * `PATCH /api/admin/users/:id`: Edit user details, active toggle, and role.
+  * `POST /api/admin/users/:id/reset-password`: Administrator-initiated password reset forcing first-login reset flag.
+
+---
+
+## 6. Timezone, Date Boundaries & Delta Calculations (§6.2)
+
+### 6.1. Authoritative Timezone
+* **System Timezone**: `Asia/Bangkok` (UTC+07:00).
+* All internal business calendar calculations (such as start-of-day, end-of-day, yesterday comparison, and recent 30-day windows) are computed relative to `Asia/Bangkok`.
+* **Wire Protocol Serialization**: All JSON timestamps are transmitted as ISO 8601 UTC strings with millisecond precision (`YYYY-MM-DDTHH:mm:ss.sssZ`). Clients parse and format timestamps into local display time (`MMM DD, YYYY hh:mm A`).
+
+### 6.2. Calendar Boundaries & Formulas
+1. **"Today" Boundary**:
+   * Starts at `00:00:00.000` `Asia/Bangkok` on the current calendar day.
+   * Converted to UTC: `currentDate_Bangkok.setHours(0,0,0,0).toISOString()`.
+2. **"Yesterday" Boundary**:
+   * Starts at `00:00:00.000` and ends at `23:59:59.999` `Asia/Bangkok` of the preceding calendar day.
+3. **"From Yesterday" Delta Calculation**:
+   * Operational metric cards return a `deltas` payload representing daily velocity:
+     $$\Delta_{\text{metric}} = \text{Count}_{\text{today}} - \text{Count}_{\text{yesterday}}$$
+   * Example: If 14 new tickets exist today compared to 13 yesterday, `deltas.newTickets = 1`.
+   * Formatted in the UI as `+N from yesterday` (green), `-N from yesterday` (steel blue), or `0 from yesterday` (gray).
+4. **"Recently Updated" Date Boundary**:
+   * `recentTickets` returns the top 5 tickets ordered by `updatedAt DESC` updated within the last 30 calendar days:
+     $$\text{updatedAt} \ge (\text{now}() - 30\text{ days})$$
+   * If fewer than 5 tickets exist in the last 30 days, returns all matching tickets (down to empty `[]`).
+5. **"Recently Resolved" Date Boundary**:
+   * `resolvedTickets` counts tickets where `currentStatus = 'RESOLVED'` and $\text{resolvedAt} \ge (\text{now}() - 30\text{ days})$.
+6. **Zero-Count & Empty Behavior**:
+   * When no records match a metric query, the backend returns count `0` and delta `0`.
+   * `recentTickets` returns empty array `[]`.
+   * The client renders friendly, non-error empty state UI cards.
