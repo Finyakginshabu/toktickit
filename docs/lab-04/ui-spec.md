@@ -132,7 +132,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
     3. **In Progress**: Total tickets with `currentStatus = IN_PROGRESS`.
     4. **Waiting for Requester**: Total tickets with `currentStatus = WAITING_FOR_REQUESTER`.
     5. **My Assigned**: Total active tickets where `ticketOwnerId = me`.
-  * **Daily Velocity Delta Display (§6.2 & Handout Page 5)**:
+  * **Daily Velocity Delta Display**:
     * Rendered immediately beneath the main numeric count on each primary card:
       * **Positive Trend ($\Delta > 0$)**: Formatted as `+N from yesterday` in emerald green (`#22543D`, `--color-success`), `font-weight: 500`, `font-size: 0.8125rem` (13px), with small upward indicator `▲`.
       * **Negative Trend ($\Delta < 0$)**: Formatted as `-N from yesterday` in muted steel blue (`#2B6CB0`), `font-weight: 500`, `font-size: 0.8125rem` (13px), with small downward indicator `▼`.
@@ -156,7 +156,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
       * `Search Tickets`: Navigates to queue with search focused.
       * `My Queue`: Pre-filters queue to tickets owned by current user.
       * `Unassigned Queue`: Pre-filters queue to unassigned tickets.
-* **Dashboard States (§8.1 Mandatory States)**:
+* **Dashboard States**:
   * **Loading**: Metric card skeletons with pulsing shimmer animation; table displays 5 placeholder skeleton rows.
   * **Empty State**: Zero metrics display `0` with neutral trend `0 from yesterday` and helpful queue-cleared text ("All caught up! No open tickets in this queue.").
   * **Forbidden State (403)**:
@@ -298,9 +298,9 @@ Screenshots for final grading submission will be placed in `artifacts/lab-04/scr
 
 ---
 
-## 8. Removal of Temporary, Duplicate & Obsolete UI Elements (§7 & §8.5)
+## 8. Removal of Temporary, Duplicate & Obsolete UI Elements
 
-To guarantee a clean, professional production appearance as required by §7 and §8.5 of the Handout, the following checklist items are verified and enforced:
+To guarantee a clean, professional production appearance as required, the following checklist items are verified and enforced:
 
 | Item ID | Category | Specific Element / Behavior | Verification Criteria |
 | :--- | :--- | :--- | :--- |

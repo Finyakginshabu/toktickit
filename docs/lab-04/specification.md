@@ -175,7 +175,7 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
 * **BR-11 (Optimistic Concurrency Control)**:
   Ticket and Action updates submit `expectedVersion` (or `expectedUpdatedAt`). If the database record version has advanced, the backend rejects the request with `409 Conflict` and returns the latest record state. Status transitions and gate checks run in an atomic database transaction.
 
-### Dashboard Calculation & Timezone Rules (§6.2)
+### Dashboard Calculation Rules
 * **Authoritative Timezone & Timestamp Standards**:
   * **Application Timezone**: `Asia/Bangkok` (UTC+07:00). All calendar date boundaries ("today", "yesterday", start-of-day) are evaluated in `Asia/Bangkok`.
   * **Wire Protocol Format**: All JSON timestamps are serialized as ISO 8601 UTC strings with millisecond precision (e.g. `2026-10-01T14:30:00.000Z`).
@@ -239,7 +239,7 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
 
 ## 6. Authorization Matrix (Role × Endpoint × Ownership)
 
-Every protected backend operation is governed by server-side role and ownership verification. Hiding UI controls is never considered authorization (§4.3):
+Every protected backend operation is governed by server-side role and ownership verification. Hiding UI controls is never considered authorization:
 
 | Endpoint / Operation | HTTP Method | Requester (End User) | IT Staff | Administrator | Ownership / Boundary Check |
 | :--- | :---: | :---: | :---: | :---: | :--- |
@@ -515,11 +515,11 @@ Before the Lab 4 increment is declared complete:
    * Verified on Desktop ($\ge 992\text{px}$), Tablet ($768 - 991\text{px}$), and Mobile ($< 768\text{px}$).
    * No horizontal window scrolling; table scrolls encapsulated within container.
    * Form inputs preserve state on recoverable API failures.
-   * Complete 4-state UI feedback implemented: loading skeletons, zero-count empty states, 403 forbidden state, and safe API failure recovery (§8.1).
-   * All console errors, broken links, placeholder text, unfinished controls, and duplicate/obsolete UI elements from earlier labs are completely removed (§7 & §8.5).
+   * Complete 4-state UI feedback implemented: loading skeletons, zero-count empty states, 403 forbidden state, and safe API failure recovery.
+   * All console errors, broken links, placeholder text, unfinished controls, and duplicate/obsolete UI elements from earlier labs are completely removed.
 4. **Documentation, Repository Integrity & Traceability**:
    * `specification.md`, `ui-spec.md`, `api-spec.md`, and `tests.md` are completely aligned with 100% bi-directional traceability.
-   * Root and module `README.md` setup, seed, migration, test, and demonstration instructions are verified, fully working, and current (§8.5).
+   * Root and module `README.md` setup, seed, migration, test, and demonstration instructions are verified, fully working, and current.
    * Screenshots captured and placed in `artifacts/lab-04/screenshots/`.
 
 ---

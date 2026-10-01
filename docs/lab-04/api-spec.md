@@ -453,7 +453,7 @@ The following endpoints from Labs 1, 2, and 3 remain fully supported, validated,
 
 ---
 
-## 6. Timezone, Date Boundaries & Delta Calculations (§6.2)
+## 6. Timezone, Date Boundaries & Delta Calculations
 
 ### 6.1. Authoritative Timezone
 * **System Timezone**: `Asia/Bangkok` (UTC+07:00).
