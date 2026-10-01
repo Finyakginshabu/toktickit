@@ -108,8 +108,8 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * **Top Bar**: Solid `#006B3C` background with white TokTickIT brand logo.
   * **Role-Specific Canonical Tabs**:
     * **Requester**: *Dashboard* (`/dashboard`), *My Tickets* (`/my-tickets`), *Create Ticket* (`/create-ticket`).
-    * **IT Staff**: *Dashboard* (`/staff/dashboard`), *Ticket Queue* (`/staff/queue`), *Create Ticket* (`/create-ticket`).
-    * **Administrator**: *Dashboard* (`/admin/dashboard`), *Ticket Queue* (`/staff/queue`), *User Management* (`/admin/users`), *Create Ticket* (`/create-ticket`).
+    * **IT Staff**: *Dashboard* (`/staff/dashboard`), *Ticket Queue* (`/staff/queue`).
+    * **Administrator**: *Dashboard* (`/admin/dashboard`), *Ticket Queue* (`/staff/queue`), *User Management* (`/admin/users`).
   * **Active Tab Style**: High-contrast white border bottom (`border-bottom: 3px solid #FFFFFF`), bold font.
   * **User Profile & Session Controls**:
     * Displays authenticated user's name and role badge.
@@ -152,7 +152,6 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
     * Empty state: "No recent tickets in queue."
   * **Right Column - "Quick Actions"**:
     * Action tiles:
-      * `Create Ticket`: Routes to ticket submission.
       * `Search Tickets`: Navigates to queue with search focused.
       * `My Queue`: Pre-filters queue to tickets owned by current user.
       * `Unassigned Queue`: Pre-filters queue to unassigned tickets.
@@ -160,7 +159,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * **Loading**: Metric card skeletons with pulsing shimmer animation; table displays 5 placeholder skeleton rows.
   * **Empty State**: Zero metrics display `0` with neutral trend `0 from yesterday` and helpful queue-cleared text ("All caught up! No open tickets in this queue.").
   * **Forbidden State (403)**:
-    * Displayed when a user without IT Staff or Administrator roles attempts to view `/staff/dashboard` or `/admin/dashboard`.
+    * Displayed to Requesters who attempt `/staff/dashboard` or `/admin/dashboard`, and to IT Staff who attempt `/admin/dashboard`.
     * Centered card container with slate lock icon (`lock` from Material Symbols, color `#4A5568`).
     * Title: "403 - Access Forbidden" (`font-size: 1.5rem`, `font-weight: 700`, `--color-text-main`).
     * Message: "You do not have the required permissions to view this operational dashboard. Access is restricted to authorized IT Staff and Administrators."
@@ -179,7 +178,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   2. **In Progress**: Tickets currently being actively serviced.
   3. **Resolved**: Tickets resolved.
   4. **Closed**: Formally closed tickets.
-  * Each card includes an explicit count and an accessible "View all" link routing to `My Tickets` filtered by that status.
+  * Each card includes an explicit count and an accessible "View all" link. `My Open` routes to `/my-tickets?status=NEW,OPEN,IN_PROGRESS,WAITING_FOR_REQUESTER,REOPENED`; other cards use their single matching status. The destination applies all comma-separated statuses as a union.
 * **Main Content Split (2:1 Ratio)**:
   * **Left Column - "My Recent Tickets"**:
     * Table displaying up to 5 recently updated tickets owned by user.
@@ -214,7 +213,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
        * If `followUpRequired = true && followUpResolvedAt`: Green pill `Follow-Up Resolved`.
        * If `followUpRequired = false`: Muted `None`.
     8. **Attachment Notes**: Text pointer to relevant attachments (e.g. `See log_output.txt`).
-    9. **Actions (IT Staff/Admin only)**: "Edit" button, "Cancel" button.
+    9. **Actions (IT Staff/Admin only)**: "Edit" button and "Cancel" button. Cancel opens a confirmation dialog requiring a cancellation reason before submission.
   * **Empty State**: "No actions taken recorded yet for this ticket. Use the button above to record technical diagnostics or actions."
   * **Requester View**: Read-only presentation; edit, cancel, and add buttons are not rendered. Staff emails are excluded.
 
@@ -230,6 +229,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   7. **Follow-Up Required?**: Switch toggle / checkbox (`Yes / No`).
   8. **Follow-Up Note**: Textarea (dynamically appears and required if *Follow-Up Required* is checked; min 5 chars).
   9. **Attachment Notes**: Text input (optional, max 1000 chars, placeholder: "e.g., Refer to error_screenshot.png in Attachments").
+  10. **Cancellation Reason**: Textarea shown and required when status is `CANCELLED` (trimmed, min 5 chars, max 2000 chars).
 * **Footer Actions**:
   * "Save Action": Primary green button, displays spinner when submitting.
   * "Cancel": Neutral secondary button.
@@ -274,7 +274,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * Alerts and Resolution Gate checklists utilize `aria-live="polite"`.
   * Expandable follow-up notes use `aria-expanded` and `aria-controls`.
 * **Color Blindness**: All badges combine distinctive color fills with explicit text labels and icon cues.
-* **Double-Click Prevention**: Primary buttons enter a busy state (`pointer-events: none`, opacity `0.75`, spinner icon) while API requests are pending.
+* **Double-Click Prevention**: All application form submit buttons enter a busy state (`pointer-events: none`, opacity `0.75`, spinner icon) while API requests are pending; this includes forms retained from Labs 1–3. Recoverable server failures preserve entered values.
 
 ---
 

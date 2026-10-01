@@ -8,21 +8,21 @@ The verification strategy for Sprint 4 provides comprehensive test coverage acro
    * Status transition matrix validator with role and gate awareness.
    * Dashboard metric aggregation algorithms, date boundaries, and delta calculations.
 2. **Database Migration, Seed & Performance Smoke Tests**:
-   * Migration verification: schema evolves cleanly; legacy records preserve integrity; rollback succeeds without data loss.
+   * Migration verification: schema evolves cleanly; legacy records preserve integrity; direct `ActionTaken` deletes are blocked; rollback removes the delete trigger and succeeds without data loss.
    * Seed idempotency: repeated execution of `npm run prisma:seed` creates zero duplicate records.
    * Performance smoke: dashboard queries execute within sub-second thresholds (<500ms).
 3. **API & Integration Tests (Supertest)**: Verifies server endpoints, database transactions, RBAC permissions, and error responses in `server/tests/lab-04/`:
-   * `actions-taken.api.test.ts`: CRUD for actions taken, auto-performer assignment, inactive assignee rejection, follow-up constraints, append-only cancellation, cross-requester privacy boundary (`404 Not Found`), and `clientActionId` duplicate submission idempotency.
-   * `ticket-workflow.api.test.ts`: Resolution Gate enforcement, permitted status transitions, optimistic concurrency collisions (`409 Conflict`), and advisory requester resolution flag behavior.
+   * `actions-taken.api.test.ts`: Action status transitions, required/persisted cancellation reasons, append-only cancellation, auto-performer attribution, inactive assignee rejection, follow-up constraints, cross-requester privacy (`404`), and lifetime `clientActionId` idempotency.
+   * `ticket-workflow.api.test.ts`: Resolution Gate enforcement, the complete role/status matrix (including requester-owned cancel/reopen routes), optimistic concurrency (`409`), and advisory requester resolution behavior.
    * `requester-dashboard.api.test.ts`: Verification that requester metrics and recent ticket lists only aggregate tickets owned by the authenticated requester.
-   * `staff-dashboard.api.test.ts`: Verification of operational queue metrics (new, open, in progress, waiting, my assigned, unassigned, high/urgent, my open actions), daily velocity deltas (`deltaFromYesterday`), admin user counts, and cross-role 403 authorization guards.
+   * `staff-dashboard.api.test.ts`: Verification of operational metrics/deltas, complete admin metric parity, all dashboard role guards, drill-down links, and comma-separated filter results matching the metric counts.
 4. **UI Component, Style & Accessibility Tests (Vitest + React Testing Library)**: Verifies component rendering, field validations, modal behaviors, keyboard accessibility, design tokens, and role styling in `client/tests/lab-04/`:
    * `ActionsTaken.test.tsx`: Action list rendering, create modal, conditional follow-up note field, assignee select filtering, form data retention on error, and requester read-only mode.
    * `TicketWorkflow.test.tsx`: Resolution Gate blocking modal with dynamic checklist, resolution summary validation, double-click busy states, and optimistic concurrency collision banner.
    * `RequesterDashboard.test.tsx`: Metric card displays, empty state, and recent tickets list.
    * `StaffDashboard.test.tsx`: Operational metric counts, daily deltas, drill-down routing handlers, and quick actions.
    * `ZenGreenStyles.test.tsx`: Design token CSS variables (`#006B3C`, `#0B7A46`, `#EAF6EF`, `#F5F7F6`), typography scale, and WCAG AA contrast for all status and priority badges.
-   * `ResponsiveLayout.test.tsx`: Automated responsive assertions at Desktop (1280px), Tablet (768px), and Mobile (375px) breakpoints.
+   * `ResponsiveLayout.test.tsx`: Responsive class/structure assertions at Desktop (1280px), Tablet (768px), and Mobile (375px); rendered overflow and touch-target dimensions are verified in Playwright.
    * `Accessibility.test.tsx`: Focus traps, `aria-label`, `aria-live`, and keyboard dismiss handlers.
 5. **End-to-End Workflows & Hardening (Playwright)**: Verifies complete cross-role browser journeys in `e2e/lab-04/`:
    * `actions-taken-flow.spec.ts`: IT Staff logs an action taken $\to$ assigns follow-up $\to$ updates status $\to$ Requester logs in and verifies read-only visibility.
@@ -42,7 +42,7 @@ The verification strategy for Sprint 4 provides comprehensive test coverage acro
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **UNIT-01** | Unit | BR-09 | Resolution Gate evaluator helper | Returns false if actions=0, incomplete actions exist, or summary missing | `server/tests/lab-04/unit/resolution-gate.test.ts` | Planned |
-| **UNIT-02** | Unit | BR-08 | Ticket status transition engine | Allows valid hops; rejects invalid jumps; gate-checks on RESOLVED/CLOSED | `server/tests/lab-04/unit/ticket-transitions.test.ts` | Planned |
+| **UNIT-02** | Unit | BR-08, BR-09 | Ticket status transition engine | Allows valid hops; rejects invalid jumps including active-to-CLOSED; gate-checks RESOLVED; permits RESOLVED-to-CLOSED | `server/tests/lab-04/unit/ticket-transitions.test.ts` | Planned |
 | **UNIT-03** | Unit | BR-12, BR-13 | Dashboard calculation formula utilities | Calculates correct counts and date boundaries | `server/tests/lab-04/unit/dashboard-metrics.test.ts` | Planned |
 | **MIG-01** | DB | AC-19 | Prisma schema migration & backfill | Applies cleanly; preserves legacy tickets, attachments, and users | `server/tests/lab-04/migration.test.ts` | Planned |
 | **MIG-02** | DB | AC-19 | Database seed idempotency | Repeated `npm run prisma:seed` executions produce zero duplicates | `server/tests/lab-04/seed-idempotency.test.ts` | Planned |
@@ -64,9 +64,14 @@ The verification strategy for Sprint 4 provides comprehensive test coverage acro
 | **API-15** | API | AC-13, FR-14, BR-12 | Requester dashboard metrics retrieval & isolation | `200 OK`, metrics isolated strictly to authenticated requester | `server/tests/lab-04/requester-dashboard.api.test.ts` | Planned |
 | **API-16** | API | AC-14, FR-15, BR-13 | IT Staff dashboard metrics retrieval | `200 OK`, system-wide operational counts and my open actions | `server/tests/lab-04/staff-dashboard.api.test.ts` | Planned |
 | **API-17** | API | AC-15, FR-16, BR-14 | Admin dashboard metrics retrieval | `200 OK`, IT metrics plus user account breakdown | `server/tests/lab-04/staff-dashboard.api.test.ts` | Planned |
-| **API-18** | API | FR-15, FR-16 | Cross-role dashboard authorization guard | Requester calling `/api/dashboard/staff` returns `403` | `server/tests/lab-04/staff-dashboard.api.test.ts` | Planned |
+| **API-18** | API | FR-15, FR-16 | Dashboard role authorization matrix | Requester is denied staff and admin dashboards; IT Staff is denied admin dashboard; authorized roles receive `200` | `server/tests/lab-04/staff-dashboard.api.test.ts` | Planned |
 | **API-19** | API | AC-14, BR-13 | Daily velocity delta calculations | Returns correct `deltaFromYesterday` for each primary queue metric | `server/tests/lab-04/staff-dashboard.api.test.ts` | Planned |
-| **API-20** | API | AC-18, FR-02 | ClientActionId retry idempotency | Identical `clientActionId` submitted twice returns original action without duplicate DB record | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| **API-20** | API | AC-18, FR-02 | ClientActionId retry idempotency | Reusing a `clientActionId` returns the original action with replay marker, including after 60 seconds, without duplicate DB records | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| **API-21** | API | FR-07, BR-07, AC-17 | Cancel Action Taken via `POST .../actions/:actionId/cancel` | `200 OK`; reason is validated and persisted; hard deletion is rejected; cancellation is blocked on terminal tickets | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| **API-22** | API | FR-10, BR-08 | Requester ticket cancellation | Requester can cancel only an owned `NEW` ticket; other ownership/status/role combinations are rejected; version conflict returns latest ticket | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
+| **API-23** | API | FR-10, BR-08 | Ticket reopen authorization | Requester can reopen only an owned `RESOLVED` ticket; IT Staff/Admin can reopen `RESOLVED` or `CLOSED`; invalid status/ownership/role and stale versions are rejected | `server/tests/lab-04/ticket-workflow.api.test.ts` | Planned |
+| **API-24** | API | FR-05, FR-07, BR-07 | Action status lifecycle and cancellation reason | Valid/invalid status transitions are enforced; `CANCELLED` requires a persisted reason and is terminal | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| **API-25** | API | FR-17, BR-15 | Multi-value dashboard drill-down filters | Comma-separated status and priority filters return the union of valid values; invalid enum values return `400 VALIDATION_ERROR` | `server/tests/lab-04/staff-dashboard.api.test.ts` | Planned |
 | **REG-01** | Reg | AC-20, FR-20 | Lab 1 Full Regression Suite | Health check probe, category schema, and category taxonomy API/UI pass 100% | `server/tests/lab-01/*.test.ts`, `client/tests/lab-01/*.test.tsx` | Planned |
 | **REG-02** | Reg | AC-20, FR-20 | Lab 2 Full Regression Suite | Multipart ticket creation, attachments upload/download/delete, dev requester, and My Tickets pass 100% | `server/tests/lab-02/*.test.ts`, `client/tests/lab-02/*.test.tsx`, `e2e/lab-02/*.spec.ts` | Planned |
 | **REG-03** | Reg | AC-20, FR-20 | Lab 3 Full Regression Suite | JWT auth, session management, RBAC, staff queue claim/assign/priority, notes/comments, and admin user mgmt pass 100% | `server/tests/lab-03/*.test.ts`, `client/tests/lab-03/*.test.tsx`, `e2e/lab-03/*.spec.ts` | Planned |
@@ -80,13 +85,13 @@ The verification strategy for Sprint 4 provides comprehensive test coverage acro
 | **UI-08** | UI | AC-13, FR-14 | Requester dashboard card rendering and empty states | Cards show correct numbers; empty list displays helpful CTA | `client/tests/lab-04/RequesterDashboard.test.tsx` | Planned |
 | **UI-09** | UI | AC-14, FR-15 | Staff dashboard operational metric cards and recent list | Cards show counts, daily deltas, open actions, and link to filtered queues | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
 | **UI-10** | UI | AC-15, FR-16 | Admin dashboard user summary stats | Displays total, active, and role breakdown counts | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
-| **UI-11** | UI | AC-16, BR-15 | Dashboard drill-down navigation link click | Navigates to queue/tickets with corresponding filters | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
-| **UI-12** | UI | FR-19, AC-18 | Double-click prevention and in-flight busy state | Buttons disable and spin during request | `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
-| **UI-13** | UI | FR-19, §8.5 | Form data retention on recoverable failure | Textarea inputs (`actionDescription`, `followUpNote`, `resolutionSummary`) retain entered text after recoverable server errors | `client/tests/lab-04/ActionsTaken.test.tsx` | Planned |
-| **UI-14** | UI | §8.1 | Dashboard 403 Forbidden State view | Displays centered lock icon, access forbidden title, and "Return to My Dashboard" button | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
+| **UI-11** | UI | AC-16, BR-15 | Dashboard drill-down navigation | Multi-status My Open and HIGH/URGENT links preserve all values and return records matching the metric | `client/tests/lab-04/RequesterDashboard.test.tsx`, `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
+| **UI-12** | UI | FR-19, AC-18 | Double-click prevention and in-flight busy state | All application form submit buttons, including legacy Lab 1–3 forms, disable and show busy feedback during requests | Existing client form tests and `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
+| **UI-13** | UI | FR-19, §8.5 | Form data retention on recoverable failure | Ticket creation, comments, user management, actions, and resolution forms preserve values after recoverable validation/server errors | Existing client tests and `client/tests/lab-04/ActionsTaken.test.tsx`, `client/tests/lab-04/TicketWorkflow.test.tsx` | Planned |
+| **UI-14** | UI | §4.1 | Dashboard 403 Forbidden State view | Requesters are denied staff/admin dashboards; IT Staff are denied admin dashboard; each shows lock icon, access forbidden title, and return button | `client/tests/lab-04/StaffDashboard.test.tsx` | Planned |
 | **STYLE-01** | UI Style | §1.1, §10 | Zen Green design tokens and typography | Verifies CSS variables (`--color-primary-green: #006B3C`, `--color-secondary-green: #0B7A46`, `--color-pale-green: #EAF6EF`, `--color-page-bg: #F5F7F6`), font stack, and radii | `client/tests/lab-04/ZenGreenStyles.test.tsx` | Planned |
 | **STYLE-02** | UI Style | §1.5, §10 | Status and priority badge contrast & styling | All status badges (`NEW`, `OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `RESOLVED`, `CLOSED`, `REOPENED`, `CANCELLED`) have correct fills, text colors, and meet WCAG AA $\ge 4.5:1$ contrast | `client/tests/lab-04/ZenGreenStyles.test.tsx` | Planned |
-| **RESP-01** | Responsive | §5, §10 | Automated multi-breakpoint responsive assertions | Desktop (1280px 5-card row), Tablet (768px 2-3 col grid), Mobile (375px single col stack, touch target $\ge 44\text{px}$, zero horizontal scroll) | `client/tests/lab-04/ResponsiveLayout.test.tsx` | Planned |
+| **RESP-01** | Responsive | §5, §10 | Multi-breakpoint responsive assertions | JSDOM verifies responsive structure; Playwright verifies Desktop/Tablet/Mobile rendered layout, touch targets $\ge 44\text{px}$, and zero horizontal overflow | `client/tests/lab-04/ResponsiveLayout.test.tsx`, `e2e/lab-04/responsive.spec.ts` | Planned |
 | **A11Y-01** | A11y | Section 6 | Accessibility & keyboard navigation check | Modal traps focus; ARIA labels present on all cards; focus outlines visible | `client/tests/lab-04/Accessibility.test.tsx` | Planned |
 | **HARD-01** | Hardening | §8.5 | Zero console errors, dead links, or placeholder text | Full crawl reveals zero uncaught console errors, zero dead links (`#`), and zero leftover placeholder text | `e2e/lab-04/hardening.spec.ts` | Planned |
 | **HARD-02** | Hardening | §8.5 | README setup, seed, migration & demo verification | Automated verification that all documented commands in root `README.md` execute without errors | `server/tests/lab-04/readme-instructions.test.ts` | Planned |
@@ -113,11 +118,12 @@ The verification strategy for Sprint 4 provides comprehensive test coverage acro
 | **AC-10** (Resolution Gate - Success) | `API-11`, `UI-06`, `E2E-02` | Resolving meeting all gate conditions succeeds. |
 | **AC-11** (Advisory Requester Flag) | `API-12` | Requester resolution indication does not advance formal status. |
 | **AC-12** (Optimistic Concurrency) | `API-13`, `UI-07` | Stale update returns `409 Conflict` with latest record. |
+| **Ticket Status Matrix & Ownership** | `UNIT-02`, `API-22`, `API-23` | Every BR-08 transition and requester/staff/admin ownership rule is enforced, including requester cancel/reopen. |
 | **AC-13** (Requester Dashboard) | `API-15`, `UI-08`, `E2E-03` | Aggregates only authenticated requester's tickets and counts. |
 | **AC-14** (IT Staff Dashboard) | `API-16`, `API-19`, `UI-09`, `E2E-03` | Operational counts, daily velocity deltas, my open actions, and recent tickets. |
 | **AC-15** (Admin User Metrics) | `API-17`, `UI-10` | Extends staff metrics with user account statistics. |
 | **AC-16** (Drill-Down Navigation) | `UI-11`, `E2E-03` | Metric card click routes to queue with pre-selected filters. |
-| **AC-17** (Locked Terminal Tickets) | `API-14` | Adding or editing actions on closed/cancelled tickets is blocked. |
+| **AC-17** (Locked Terminal Tickets) | `API-14`, `API-21` | Adding or editing actions on closed/cancelled tickets is blocked. |
 | **AC-18** (Double-Click & Idempotency) | `UI-12`, `API-20` | Buttons disable and show spinner; identical `clientActionId` prevents duplicate insertion. |
 | **AC-19** (Migration & Seed Idempotency)| `MIG-01`, `MIG-02` | Schema evolves safely; seed creates zero duplicates on re-run. |
 | **AC-20** (Full System Regression) | `REG-01`, `REG-02`, `REG-03` | 100% passing tests across all Lab 1, Lab 2, and Lab 3 suites. |
@@ -132,7 +138,7 @@ The verification strategy for Sprint 4 provides comprehensive test coverage acro
 
 * [ ] **Dashboard Desktop Layout ($\ge 992\text{px}$)**: 5-card metric row with daily velocity deltas, side-by-side recent tickets and quick action column.
 * [ ] **Dashboard Tablet Layout ($768 - 991\text{px}$)**: 2–3 card metric grid, stacked quick action card.
-* [ ] **Dashboard Mobile Layout ($< 768\text{px}$)**: Single column stacked metric cards, full-width touch buttons ($\ge 44\times 44\text{px}$).
+* [ ] **Dashboard Mobile Layout ($< 768\text{px}$)**: Single column stacked metric cards, full-width touch buttons ($\ge 44\times 44\text{px}$); verify rendered dimensions in Playwright.
 * [ ] **Actions Taken Table & Mobile Cards**: Multi-column table on desktop; wraps into accessible cards on mobile without horizontal window scrolling.
 * [ ] **Resolution Gate Guidance**: Modal displays clear, accessible checklist of pending requirements before resolving.
 * [ ] **In-Flight Busy States**: Submit buttons disable and show spinner while requests are pending.

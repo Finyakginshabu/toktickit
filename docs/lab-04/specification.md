@@ -27,6 +27,8 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
      * `followUpNote` (String, required if `followUpRequired = true`, max 2000 chars)
      * `followUpResolvedAt` (DateTime, records when follow-up was completed/cleared)
      * `attachmentNotes` (String, optional reference to attachments, max 1000 chars)
+    * `cancellationReason` (String, required when status is `CANCELLED`, max 2000 chars)
+    * `clientActionId` (UUID, optional, unique idempotency key)
      * `version` (Int, default 1, optimistic locking)
      * `createdAt`, `updatedAt`
    * IT Staff and Admin capabilities to list, create, edit, reassign, transition status, and resolve follow-up items.
@@ -36,7 +38,7 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
    * Actions cannot be added or edited on tickets in `CLOSED` or `CANCELLED` status.
 2. **Ticket Status Transition Rules & Resolution Gate**:
    * Complete 8-status lifecycle transition matrix with role enforcement: `NEW`, `OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `RESOLVED`, `CLOSED`, `REOPENED`, `CANCELLED`.
-   * Backend-enforced **Resolution Gate**: Rejection of transitions to `RESOLVED` (and direct active jumps to `CLOSED`) unless:
+  * Backend-enforced **Resolution Gate**: Rejection of transitions to `RESOLVED` unless:
      * At least one `ActionTaken` record exists on the ticket.
      * No `ActionTaken` on the ticket is incomplete (`status` $\in$ {`PENDING`, `IN_PROGRESS`}).
      * No `ActionTaken` on the ticket has an unresolved follow-up (`followUpRequired == true && followUpResolvedAt == null && status != CANCELLED`).
@@ -77,15 +79,15 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
 * **FR-02 (Actions Taken Creation)**: The system shall allow IT Staff and Administrators to record an Action Taken specifying Action Date/Time, Action Description, optional Result, optional Assignee, Status, Follow-Up Required flag, Follow-Up Note, and Attachment Notes.
 * **FR-03 (Authoritative Performer Attribution)**: The system shall automatically record the authenticated user as the performer (`performedById`) upon creation of an Action Taken line.
 * **FR-04 (Assignee Assignment & Validation)**: The system shall allow assigning an Action Taken to an active IT Staff or Administrator account (`assigneeId`), and shall strictly reject assignment to inactive users or Requesters with `400 Bad Request` (`INVALID_ASSIGNEE`).
-* **FR-05 (Actions Taken Modification & Status Lifecycle)**: The system shall allow IT Staff and Administrators to edit existing Action Taken records, transition status across `PENDING`, `IN_PROGRESS`, `COMPLETED`, and `CANCELLED`, reassign active assignees, and update follow-up requirements.
+* **FR-05 (Actions Taken Modification & Status Lifecycle)**: The system shall allow IT Staff and Administrators to edit existing Action Taken records, transition status across `PENDING`, `IN_PROGRESS`, `COMPLETED`, and `CANCELLED`, reassign active assignees, and update follow-up requirements. Any transition or creation with status `CANCELLED` requires a trimmed cancellation reason of 5–2000 characters, preserved on the action record.
 * **FR-06 (Follow-Up Management & Completion)**: The system shall mandate a non-empty `followUpNote` ($\ge 5$ chars) whenever `followUpRequired` is `true`. The system shall provide an action to mark follow-up as resolved, stamping `followUpResolvedAt = now()` without erasing `followUpNote`.
-* **FR-07 (Append-Only & Cancellation Rules)**: The system shall prevent hard deletion of Actions Taken. An action is removed from active consideration by setting status to `CANCELLED`.
+* **FR-07 (Append-Only & Cancellation Rules)**: The system shall prevent hard deletion of Actions Taken, including cascading deletion when a Ticket is deleted. An action is removed from active consideration by setting status to `CANCELLED` with a required, persisted cancellation reason.
 * **FR-08 (Requester Write Prohibition & Privacy Boundary)**: The system shall prevent Requesters from creating, updating, or cancelling Actions Taken (`403 Forbidden`). Requesting actions for an unowned ticket shall return `404 Not Found` to prevent leaking ticket existence.
 * **FR-09 (Ticket State Lock on Actions)**: The system shall reject adding or updating Actions Taken on tickets that are in `CLOSED` or `CANCELLED` status with `400 Bad Request`.
 
 ### Ticket Status & Workflow Subsystem
 * **FR-10 (Status Transition Matrix Enforcement)**: The system shall enforce permitted ticket status transitions according to the defined lifecycle matrix and authorized roles.
-* **FR-11 (Authoritative Resolution Gate)**: The backend shall intercept and reject any request to advance ticket status to `RESOLVED` (or direct active jump to `CLOSED`) unless:
+* **FR-11 (Authoritative Resolution Gate)**: The backend shall intercept and reject any request to advance ticket status to `RESOLVED` unless:
   1. The ticket has at least one associated `ActionTaken` record.
   2. Zero associated `ActionTaken` records have status $\in$ {`PENDING`, `IN_PROGRESS`}.
   3. Zero associated `ActionTaken` records have unresolved follow-up (`followUpRequired == true && followUpResolvedAt == null && status != CANCELLED`).
@@ -104,13 +106,13 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
   * Primary metric cards: `newTickets`, `openTickets`, `inProgressTickets`, `waitingForRequesterTickets`, `myAssignedTickets`.
   * Secondary indicators: `unassignedTickets`, `highUrgentTickets`, `myOpenActionsCount` (count of pending/in-progress actions assigned to or performed by the current user).
   * `recentTickets`: Up to 5 most recently updated tickets system-wide.
-  * Quick action shortcuts: `Create Ticket`, `Search Tickets`, `My Queue`, `Unassigned Queue`.
+  * Quick action shortcuts: `Search Tickets`, `My Queue`, `Unassigned Queue`. Ticket creation remains Requester-only.
 * **FR-16 (Administrator Dashboard API & UI)**: The system shall provide an endpoint and UI combining all IT Staff operational metrics with concise user-account summary metrics (`totalUsers`, `activeUsers`, `inactiveUsers`, and `usersByRole`).
 * **FR-17 (Dashboard Drill-Down Navigation)**: Every dashboard card with a count $> 0$ shall provide an accessible link routing to the queue or tickets list with query parameters pre-filtered.
 
 ### UI, Accessibility & Regression Subsystem
 * **FR-18 (Role-Based Dashboard Navigation)**: The application shell navigation bar shall display *Dashboard* as the default landing tab for all authenticated roles.
-* **FR-19 (Form Resilience & Double-Click Prevention)**: All form submit buttons shall display busy indicators and disable controls during in-flight network requests. Recoverable validation failures shall preserve user inputs.
+* **FR-19 (Form Resilience & Double-Click Prevention)**: All application form submit buttons, including forms retained from Labs 1–3, shall display busy indicators and disable controls during in-flight network requests. Recoverable validation failures shall preserve user inputs.
 * **FR-20 (Full Stack Regression)**: The application shall maintain 100% test passing rates across all Lab 1, Lab 2, and Lab 3 test suites.
 
 ---
@@ -130,6 +132,7 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
 * **BR-07 (Action Taken Status Model & Transitions)**:
   * Permitted action statuses: `PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`.
   * `result` is required ($\ge 3$ characters) when status is set to `COMPLETED`.
+  * `cancellationReason` is required, trimmed, and 5–2000 characters whenever an action is created or transitioned to `CANCELLED`; it is retained as audit history. `CANCELLED` is terminal.
   * Permitted action status transitions:
     * `PENDING` $\to$ `IN_PROGRESS`, `COMPLETED`, `CANCELLED`
     * `IN_PROGRESS` $\to$ `COMPLETED`, `CANCELLED`
@@ -163,7 +166,7 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
   | `CANCELLED` | *(None)* | — | Terminal state; no transitions permitted. |
 
 * **BR-09 (Authoritative Resolution Gate)**:
-  A ticket cannot transition to `RESOLVED` (or directly from active states to `CLOSED`) unless all four criteria are satisfied:
+  A ticket cannot transition to `RESOLVED` unless all four criteria are satisfied. Direct transitions from active states to `CLOSED` are invalid under BR-08; tickets must first pass the gate and enter `RESOLVED`:
   1. The ticket has $\ge 1$ associated `ActionTaken` record.
   2. Zero associated `ActionTaken` records have status $\in$ {`PENDING`, `IN_PROGRESS`}.
   3. Zero associated `ActionTaken` records have unresolved follow-up (`followUpRequired == true && followUpResolvedAt == null && status != CANCELLED`).
@@ -226,9 +229,9 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
     * `waitingForRequesterTickets` $\to$ `/staff/queue?status=WAITING_FOR_REQUESTER`
     * `myAssignedTickets` $\to$ `/staff/queue?ownerId=me`
     * `unassignedTickets` $\to$ `/staff/queue?ownerId=unassigned`
-    * `highUrgentTickets` $\to$ `/staff/queue?itPriority=HIGH`
+    * `highUrgentTickets` $\to$ `/staff/queue?itPriority=HIGH,URGENT`
   * Requester:
-    * `myOpenTickets` $\to$ `/my-tickets?status=OPEN`
+    * `myOpenTickets` $\to$ `/my-tickets?status=NEW,OPEN,IN_PROGRESS,WAITING_FOR_REQUESTER,REOPENED`
     * `inProgressTickets` $\to$ `/my-tickets?status=IN_PROGRESS`
     * `resolvedTickets` $\to$ `/my-tickets?status=RESOLVED`
     * `closedTickets` $\to$ `/my-tickets?status=CLOSED`
@@ -268,8 +271,8 @@ Every protected backend operation is governed by server-side role and ownership 
 | `PATCH /api/staff/tickets/:id/status` (Active transitions) | PATCH | **Forbidden (403)** | Allowed | Allowed | Enforces approved lifecycle transition matrix (`BR-08`) |
 | `PATCH /api/staff/tickets/:id/status` (Resolve ticket) | PATCH | **Forbidden (403)** | Allowed (Subject to Gate) | Allowed (Subject to Gate) | **Enforces Resolution Gate (BR-09)** ($\ge 1$ action, 0 incomplete, 0 open follow-ups, non-empty summary) |
 | `POST /api/tickets/:id/indicate-resolved` | POST | Owned Only | **Forbidden (403)** | **Forbidden (403)** | Advisory; stamps flag/timestamp and logs audit comment. Does NOT advance status or satisfy Resolution Gate |
-| `PATCH /api/tickets/:id/reopen` | PATCH | Owned Only (RESOLVED) | Allowed | Allowed | Requesters may reopen owned resolved tickets; Staff/Admin can reopen resolved or closed tickets |
-| `PATCH /api/tickets/:id/cancel` | PATCH | Owned Only (NEW) | Allowed | Allowed | Requesters can only cancel owned tickets while still `NEW`; Staff/Admin can cancel active tickets |
+| `PATCH /api/tickets/:id/reopen` | PATCH | Owned Only (RESOLVED) | Allowed | Allowed | Requesters may reopen owned resolved tickets; Staff/Admin can reopen resolved or closed tickets; all writes require `expectedVersion` |
+| `PATCH /api/tickets/:id/cancel` | PATCH | Owned Only (NEW) | Allowed | Allowed | Requesters can only cancel owned tickets while still `NEW`; Staff/Admin can cancel active tickets; all writes require `expectedVersion` |
 | `GET /api/tickets/:id/actions` | GET | Owned Only (Read-Only) | Any Ticket | Any Ticket | Chronological order (`actionDateTime ASC, id ASC`); staff emails hidden for Requesters; unowned returns `404 Not Found` |
 | `POST /api/tickets/:id/actions` | POST | **Forbidden (403)** | Allowed | Allowed | Auto-assigns `performedById = auth.userId`; active assignee check; duplicate check via `clientActionId`; closed/cancelled tickets blocked (`400 Bad Request`) |
 | `PATCH /api/tickets/:id/actions/:actionId` | PATCH | **Forbidden (403)** | Allowed | Allowed | Updates description, status, or assignee; optimistic concurrency check (`expectedVersion`); closed/cancelled tickets blocked (`400 Bad Request`) |
@@ -294,7 +297,7 @@ The UI strictly adheres to the **Zen Green Design System**:
 2. **IT Staff Dashboard (`StaffDashboard.tsx`)**:
    * Welcome banner: "Welcome back, {User Name}!" with `↻ Refresh` button.
    * 5 primary metric cards (`New`, `Open`, `In Progress`, `Waiting for Requester`, `My Assigned`), unassigned / priority alerts, and `My Open Actions` badge.
-   * Split content: "My Recent Tickets" table on left; "Quick Actions" panel on right (`Create Ticket`, `Search Tickets`, `My Queue`, `Unassigned Queue`).
+  * Split content: "My Recent Tickets" table on left; "Quick Actions" panel on right (`Search Tickets`, `My Queue`, `Unassigned Queue`).
 3. **Requester Dashboard (`RequesterDashboard.tsx`)**:
    * Welcome banner: "Welcome, {User Name}!".
    * 4 metric cards (`My Open`, `In Progress`, `Resolved`, `Closed`), and alert banner when tickets are waiting for requester response.
@@ -340,20 +343,22 @@ The UI strictly adheres to the **Zen Green Design System**:
      status             ActionStatus @default(COMPLETED)
      followUpRequired   Boolean      @default(false)
      followUpNote       String?      @db.VarChar(2000)
-     followUpResolvedAt DateTime?
+    followUpResolvedAt DateTime?
      attachmentNotes    String?      @db.VarChar(1000)
+    cancellationReason String?      @db.VarChar(2000)
+    clientActionId     String?      @unique @db.Uuid
      version            Int          @default(1)
      createdAt          DateTime     @default(now())
      updatedAt          DateTime     @updatedAt
 
-     ticket             Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+    ticket             Ticket       @relation(fields: [ticketId], references: [id], onDelete: Restrict)
      performedBy        User         @relation("ActionPerformer", fields: [performedById], references: [id])
      assignee           User?        @relation("ActionAssignee", fields: [assigneeId], references: [id])
 
      @@index([ticketId, actionDateTime])
      @@index([ticketId, status])
      @@index([performedById])
-     @@index([assigneeId])
+    @@index([assigneeId])
    }
    ```
 
@@ -380,6 +385,7 @@ The UI strictly adheres to the **Zen Green Design System**:
 * Migration name: `20261001_actions_taken_and_dashboards`.
 * Purely additive: creates `ActionStatus` enum, creates `ActionTaken` table, and adds `resolvedAt` and `version` columns to `Ticket`.
 * Existing tickets and attachments from Labs 1–3 remain untouched.
+* The migration installs a PostgreSQL `BEFORE DELETE` trigger on `ActionTaken` that raises an exception, preventing direct database deletion. The Ticket foreign key uses `ON DELETE RESTRICT` to prevent cascade deletion. Rollback drops the trigger before dropping the new table.
 * Legacy tickets in `RESOLVED` or `CLOSED` status have `resolvedAt` backfilled to their `updatedAt` value.
 * Rollback: Dropping `ActionTaken` table and removing added columns fully restores the Lab 3 schema.
 
@@ -400,14 +406,14 @@ The UI strictly adheres to the **Zen Green Design System**:
 
 1. **Actions Taken Endpoints**:
    * `GET /api/tickets/:id/actions`: Returns actions for ticket (stable order: `actionDateTime ASC, id ASC`).
-   * `POST /api/tickets/:id/actions`: Creates action (IT Staff/Admin only; auto-performer; active assignee validation; duplicate protection).
+  * `POST /api/tickets/:id/actions`: Creates action (IT Staff/Admin only; auto-performer; active assignee validation; durable duplicate protection).
    * `PATCH /api/tickets/:id/actions/:actionId`: Updates action, transitions status, or marks follow-up resolved (optimistic concurrency via `expectedVersion`).
 2. **Dashboard Endpoints**:
    * `GET /api/dashboard/requester`: Returns `myOpenTickets`, `inProgressTickets`, `resolvedTickets`, `closedTickets`, `waitingForRequesterTickets`, and `recentTickets`.
    * `GET /api/dashboard/staff`: Returns `newTickets`, `openTickets`, `inProgressTickets`, `waitingForRequesterTickets`, `myAssignedTickets`, `unassignedTickets`, `highUrgentTickets`, `myOpenActionsCount`, and `recentTickets`.
    * `GET /api/dashboard/admin`: Extends staff metrics with `totalUsers`, `activeUsers`, `inactiveUsers`, and `usersByRole`.
 3. **Workflow & Status Updates**:
-   * `PATCH /api/staff/tickets/:id/status`: Enforces Resolution Gate and atomic concurrency lock.
+  * `PATCH /api/staff/tickets/:id/status`: Enforces BR-08 and applies the Resolution Gate only when transitioning to `RESOLVED`; direct active-to-`CLOSED` transitions are invalid.
    * `POST /api/tickets/:id/indicate-resolved`: Requester advisory resolution indication.
 
 *(Full schemas, parameter validations, and responses are detailed in `docs/lab-04/api-spec.md`)*.

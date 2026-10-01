@@ -56,6 +56,8 @@
         "name": "Sarah Johnson",
         "role": "IT_STAFF"
       },
+      "cancellationReason": null,
+      "clientActionId": null,
       "followUpRequired": true,
       "followUpNote": "Verify with user on Friday if screen flickering recurs.",
       "followUpResolvedAt": "2026-10-01T14:20:00.000Z",
@@ -86,6 +88,7 @@
     "result": "Memory module passed all tests.",
     "status": "COMPLETED",
     "assigneeId": 3,
+    "cancellationReason": null,
     "followUpRequired": false,
     "followUpNote": null,
     "attachmentNotes": "See test_log.txt",
@@ -97,12 +100,14 @@
   * `actionDescription`: Required string, length between 5 and 2000 characters.
   * `status`: Enum (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`); defaults to `COMPLETED`.
   * `result`: Required ($\ge 3$ characters) if `status === 'COMPLETED'`; optional for `PENDING` or `IN_PROGRESS`.
+  * `cancellationReason`: Required, trimmed, 5–2000 characters when `status === 'CANCELLED'`; otherwise null or omitted.
   * `assigneeId`: Optional integer. If provided, must reference an active user (`isActive = true`) with role `IT_STAFF` or `ADMINISTRATOR`. Inactive users or Requesters are rejected with `400 Bad Request` (`INVALID_ASSIGNEE`).
   * `followUpRequired`: Boolean; defaults to `false`.
   * `followUpNote`: Required if `followUpRequired === true` ($\ge 5$ characters); must be null/empty if `false`.
-  * `clientActionId`: Optional UUID for network retry idempotency. If an action with the same `clientActionId` was created in the last 60 seconds, returns the existing record without duplicate insertion.
-* **Success Response (`201 Created`)**:
-  Returns the created `ActionTaken` object with nested `performedBy` and `assignee` details.
+  * `clientActionId`: Optional UUID, unique for the lifetime of the action record. A repeated key returns the original record without duplicate insertion, including retries after 60 seconds.
+* **Success Responses**:
+  * `201 Created`: Returns the created `ActionTaken` object with nested `performedBy` and `assignee` details.
+  * `200 OK`: A replayed `clientActionId` returns the existing action with `Idempotent-Replay: true` response header.
 * **Error Responses**:
   * `400 Bad Request`: Validation error, inactive assignee, or ticket is closed/cancelled.
   * `401 Unauthorized`: Unauthenticated.
@@ -123,6 +128,7 @@
     "actionDescription": "Updated action description...",
     "result": "Diagnostic verified.",
     "status": "COMPLETED",
+    "cancellationReason": null,
     "assigneeId": 4,
     "followUpRequired": true,
     "followUpNote": "Check again on Monday",
@@ -132,6 +138,7 @@
   ```
 * **Rules & Optimistic Concurrency**:
   * `expectedVersion`: Required integer. If the record's current `version !== expectedVersion`, the request is rejected with `409 Conflict`.
+  * If `status === 'CANCELLED'`, `cancellationReason` is required, trimmed, and 5–2000 characters. A cancelled action is terminal and cannot be edited or reopened.
   * If `resolveFollowUp: true`, sets `followUpResolvedAt = now()`.
   * Rejects updates on tickets that are `CLOSED` or `CANCELLED`.
 * **Success Response (`200 OK`)**:
@@ -150,12 +157,13 @@
 * **Request Body**:
   ```json
   {
-    "reason": "Hardware replacement no longer necessary as issue was software-related.",
+    "reason": "Hardware replacement is no longer necessary; issue was software-related.",
     "expectedVersion": 1
   }
   ```
+* **Validation**: `reason` is required, trimmed, and 5–2000 characters; it is persisted as `cancellationReason` and retained in the action audit record.
 * **Success Response (`200 OK`)**:
-  Returns action with `status: "CANCELLED"` and updated `version`.
+  Returns action with `status: "CANCELLED"`, `cancellationReason`, and updated `version`.
 
 ---
 
@@ -175,7 +183,7 @@
       "waitingForRequesterTickets": 1
     },
     "drillDownUrls": {
-      "myOpenTickets": "/my-tickets?status=OPEN",
+      "myOpenTickets": "/my-tickets?status=NEW,OPEN,IN_PROGRESS,WAITING_FOR_REQUESTER,REOPENED",
       "inProgressTickets": "/my-tickets?status=IN_PROGRESS",
       "resolvedTickets": "/my-tickets?status=RESOLVED",
       "closedTickets": "/my-tickets?status=CLOSED",
@@ -198,7 +206,7 @@
   * All metrics query tickets where `requesterId = auth.userId`.
   * `myOpenTickets`: `currentStatus` $\in$ {`NEW`, `OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `REOPENED`}.
   * `inProgressTickets`: `currentStatus = 'IN_PROGRESS'`.
-  * `resolvedTickets`: `currentStatus = 'RESOLVED'`.
+  * `resolvedTickets`: `currentStatus = 'RESOLVED'` and `resolvedAt >= now() - INTERVAL '30 days'` (evaluated in `Asia/Bangkok`; see `BR-12`).
   * `closedTickets`: `currentStatus = 'CLOSED'`.
   * `waitingForRequesterTickets`: `currentStatus = 'WAITING_FOR_REQUESTER'`.
   * `recentTickets`: Top 5 tickets owned by requester ordered by `updatedAt DESC`.
@@ -235,7 +243,7 @@
       "waitingForRequesterTickets": "/staff/queue?status=WAITING_FOR_REQUESTER",
       "myAssignedTickets": "/staff/queue?ownerId=me",
       "unassignedTickets": "/staff/queue?ownerId=unassigned",
-      "highUrgentTickets": "/staff/queue?itPriority=HIGH"
+      "highUrgentTickets": "/staff/queue?itPriority=HIGH,URGENT"
     },
     "recentTickets": [
       {
@@ -292,9 +300,21 @@
         "ADMINISTRATOR": 2
       }
     },
+    "deltas": {
+      "newTickets": 1,
+      "openTickets": -2,
+      "inProgressTickets": -1,
+      "waitingForRequesterTickets": 1,
+      "myAssignedTickets": 1
+    },
     "drillDownUrls": {
       "newTickets": "/staff/queue?status=NEW",
       "openTickets": "/staff/queue?status=OPEN",
+      "inProgressTickets": "/staff/queue?status=IN_PROGRESS",
+      "waitingForRequesterTickets": "/staff/queue?status=WAITING_FOR_REQUESTER",
+      "myAssignedTickets": "/staff/queue?ownerId=me",
+      "unassignedTickets": "/staff/queue?ownerId=unassigned",
+      "highUrgentTickets": "/staff/queue?itPriority=HIGH,URGENT",
       "manageUsers": "/admin/users"
     },
     "recentTickets": [
@@ -329,7 +349,8 @@
   }
   ```
 * **Resolution Gate Enforcement (`BR-09`)**:
-  When transitioning from active status (`NEW`, `OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `REOPENED`) to `RESOLVED` or `CLOSED`:
+  The gate applies when transitioning from an eligible active status (`OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `REOPENED`) to `RESOLVED`. Direct active-to-`CLOSED` transitions are invalid under BR-08. A valid `RESOLVED` to `CLOSED` transition does not repeat the gate; legacy resolved tickets remain closable.
+  `resolutionSummary` is required only when the requested status is `RESOLVED`; closing an already resolved ticket does not replace its summary.
   The server performs an atomic evaluation inside a database transaction:
   1. Checks if ticket has $\ge 1$ `ActionTaken` record.
   2. Checks if any `ActionTaken` has `status` $\in$ {`PENDING`, `IN_PROGRESS`}.
@@ -362,7 +383,7 @@
       }
     }
     ```
-* **Grandfathering Note**: Tickets transitioning from `RESOLVED` to `CLOSED` bypass the count check to avoid locking legacy resolved tickets.
+* **Grandfathering Note**: Legacy tickets already in `RESOLVED` or `CLOSED` are not retroactively checked. Their permitted `RESOLVED` to `CLOSED` transition remains available.
 * **Success Response (`200 OK`)**:
   Returns the updated ticket object with `currentStatus`, `resolutionSummary`, `resolvedAt` (if transitioning to `RESOLVED`), and incremented `version`.
 
@@ -383,6 +404,16 @@
     "problemAppearsResolvedAt": "2026-10-01T11:00:00.000Z"
   }
   ```
+
+### 4.3. `PATCH /api/tickets/:ticketId/cancel`
+* **Authorization**: Requesters may cancel only their own tickets in `NEW`. IT Staff and Administrators may cancel tickets only from statuses allowed by BR-08 (`NEW`, `OPEN`, `IN_PROGRESS`, `WAITING_FOR_REQUESTER`, `REOPENED`).
+* **Request Body**: `{ "expectedVersion": 1 }`.
+* **Behavior**: Atomically verifies ownership/role, current status, and `expectedVersion`, then sets `currentStatus` to `CANCELLED` and increments `version`. Closed, cancelled, or otherwise invalid transitions return `400 INVALID_TRANSITION`; stale versions return `409 CONFLICT` with the latest ticket.
+
+### 4.4. `PATCH /api/tickets/:ticketId/reopen`
+* **Authorization**: Requesters may reopen only their own `RESOLVED` tickets. IT Staff and Administrators may reopen tickets in `RESOLVED` or `CLOSED`.
+* **Request Body**: `{ "expectedVersion": 1 }`.
+* **Behavior**: Atomically verifies ownership/role, current status, and `expectedVersion`, then sets `currentStatus` to `REOPENED` and increments `version`. Other statuses return `400 INVALID_TRANSITION`; stale versions return `409 CONFLICT` with the latest ticket.
 
 ---
 
@@ -427,7 +458,7 @@ The following endpoints from Labs 1, 2, and 3 remain fully supported, validated,
   * `GET /api/related-systems`: Reference integration listing.
   * `GET /api/requesters`: Dev requester fixture listing.
 * **Lab 2 Ticket Submission & Attachments**:
-  * `GET /api/tickets`: Paginated ticket retrieval for authenticated user.
+  * `GET /api/tickets`: Paginated ticket retrieval for authenticated user. The `status` query parameter accepts one or more comma-separated enum values and applies an OR filter while retaining requester ownership isolation.
   * `POST /api/tickets`: Multipart/form-data ticket creation with attachments and validation.
   * `GET /api/tickets/:id`: Ticket detail view with category, requester, status history, and attachments.
   * `POST /api/tickets/:id/attachments`: Upload attachment (PNG, JPG, PDF; size $\le 5\text{MB}$).
@@ -442,7 +473,8 @@ The following endpoints from Labs 1, 2, and 3 remain fully supported, validated,
   * `POST /api/tickets/:id/comments`: Add public comment.
   * `GET /api/tickets/:id/notes`: Restricted internal staff notes.
   * `POST /api/tickets/:id/notes`: Add restricted internal note.
-  * `GET /api/staff/tickets`: IT Staff unified queue with search and status/priority filters.
+  * `GET /api/staff/tickets`: IT Staff unified queue with search and status/priority filters. `status` and `itPriority` accept one or more comma-separated enum values and apply OR filters within each field; invalid values return `400 VALIDATION_ERROR`.
+  * Dashboard drill-down links using multiple values use these comma-separated filters and return every item represented by the source metric.
   * `PATCH /api/staff/tickets/:id/claim`: Claim unassigned ticket (`ticketOwnerId = auth.userId`).
   * `PATCH /api/staff/tickets/:id/assign`: Assign ticket to another active IT Staff member.
   * `PATCH /api/staff/tickets/:id/priority`: Set operational priority (`LOW`, `MEDIUM`, `HIGH`, `URGENT`).
