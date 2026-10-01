@@ -137,28 +137,6 @@ To ensure accountability, the primary Ticket Owner remains responsible for the t
     * `CANCELLED` $\to$ Terminal
   * Hard deletion is prohibited; cancellation is performed via status `CANCELLED`.
 
-### Authorization Matrix (Operation × Role) (§4.3)
-As mandated by §4.3 of the Handout, the backend strictly enforces authorization on every endpoint and operation. Hiding UI controls is never considered authorization.
-
-| Operation / Action | Endpoint & Method | REQUESTER | IT_STAFF | ADMINISTRATOR | Backend Enforcement & Failure Response |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **View Actions Taken (Owned Ticket)** | `GET /api/tickets/:id/actions` | Allowed (Read-only, emails hidden) | Allowed | Allowed | Returns `200 OK` with action lines in stable order (`actionDateTime ASC, id ASC`). |
-| **View Actions Taken (Unowned Ticket)** | `GET /api/tickets/:id/actions` | **Denied** (`404 Not Found`) | Allowed | Allowed | `404 Not Found` returned to Requesters to avoid leaking ticket existence across ownership boundaries. |
-| **Create Action Taken** | `POST /api/tickets/:id/actions` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Auto-assigns `performedById = auth.userId`. Rejects inactive assignees with `400 Bad Request`. Closed/cancelled tickets reject with `400 Bad Request`. |
-| **Edit / Update Action Taken** | `PATCH /api/tickets/:id/actions/:actionId` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Checks `expectedVersion` against database version (`409 Conflict` if mismatch). Closed/cancelled tickets reject with `400 Bad Request`. |
-| **Resolve Action Follow-Up** | `PATCH /api/tickets/:id/actions/:actionId` (`resolveFollowUp: true`) | **Denied** (`403 Forbidden`) | Allowed | Allowed | Stamps `followUpResolvedAt = now()`. Preserves historical `followUpNote`. |
-| **Cancel Action Taken** | `POST /api/tickets/:id/actions/:actionId/cancel` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Sets status to `CANCELLED`. Hard deletion is strictly prohibited. |
-| **Advance Active Ticket Status** | `PATCH /api/staff/tickets/:id/status` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Validates permitted transitions per `BR-08`. Returns `400 Bad Request` on illegal status jumps. |
-| **Resolve Ticket (`status: RESOLVED`)** | `PATCH /api/staff/tickets/:id/status` | **Denied** (`403 Forbidden`) | Allowed (Subject to Gate) | Allowed (Subject to Gate) | **Enforces Resolution Gate (BR-09)**. Rejects with `400 Bad Request` (`RESOLUTION_GATE_BLOCKED`) if criteria unmet. |
-| **Close Ticket (`status: CLOSED`)** | `PATCH /api/staff/tickets/:id/status` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Permitted from `RESOLVED` status. Legacy resolved tickets grandfathered. |
-| **Reopen Ticket (`status: REOPENED`)** | `PATCH /api/staff/tickets/:id/status` or `PATCH /api/tickets/:id/reopen` | Allowed (Owned `RESOLVED` tickets only) | Allowed | Allowed | Requesters can reopen owned resolved tickets. Staff/Admin can reopen resolved or closed tickets. |
-| **Cancel Ticket (`status: CANCELLED`)** | `PATCH /api/staff/tickets/:id/status` or `PATCH /api/tickets/:id/cancel` | Allowed (Owned `NEW` tickets only) | Allowed | Allowed | Requesters can only cancel their own tickets while still `NEW`. Staff/Admin can cancel active tickets. |
-| **Indicate Problem Appears Resolved** | `POST /api/tickets/:id/indicate-resolved` | Allowed (Owned tickets only) | **Denied** (`403 Forbidden`) | **Denied** (`403 Forbidden`) | Purely advisory. Stamps flag/timestamp and logs audit comment. Does NOT advance status or satisfy Resolution Gate. |
-| **View Requester Dashboard** | `GET /api/dashboard/requester` | Allowed (Owned tickets only) | Allowed | Allowed | Returns metrics and recent tickets scoped strictly to the authenticated requester. |
-| **View IT Staff Dashboard** | `GET /api/dashboard/staff` | **Denied** (`403 Forbidden`) | Allowed | Allowed | Returns operational queues, open actions, and recent tickets across all tickets. |
-| **View Admin Dashboard** | `GET /api/dashboard/admin` | **Denied** (`403 Forbidden`) | **Denied** (`403 Forbidden`) | Allowed | Returns IT Staff operational metrics plus user account management statistics. |
-| **Admin User Management** | `GET, POST, PATCH /api/admin/users*` | **Denied** (`403 Forbidden`) | **Denied** (`403 Forbidden`) | Allowed | Full user administration, role assignment, active/inactive toggle, and password resets. |
-
 ### Ticket Status & Workflow Rules
 * **BR-08 (Permitted Ticket Status Transition & Authorization Matrix)**:
   | From Status | Permitted Next Status | Authorized Roles | Business Condition / Gate |
@@ -259,7 +237,55 @@ As mandated by §4.3 of the Handout, the backend strictly enforces authorization
 
 ---
 
-## 6. UI Specification Summary
+## 6. Authorization Matrix (Role × Endpoint × Ownership)
+
+Every protected backend operation is governed by server-side role and ownership verification. Hiding UI controls is never considered authorization (§4.3):
+
+| Endpoint / Operation | HTTP Method | Requester (End User) | IT Staff | Administrator | Ownership / Boundary Check |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `POST /api/auth/login` | POST | Public | Public | Public | Only active accounts (`isActive = true`) |
+| `POST /api/auth/logout` | POST | Authenticated | Authenticated | Authenticated | Invalidate token / session |
+| `GET /api/auth/me` | GET | Authenticated | Authenticated | Authenticated | Returns own profile and role |
+| `POST /api/auth/change-password` | POST | Authenticated | Authenticated | Authenticated | Complexity rules; `new !== current` |
+| `GET /api/health` | GET | Public / All | Public / All | Public / All | Primary system liveness and DB connectivity probe |
+| `GET /api/categories` | GET | Public / All | Public / All | Public / All | Reference category taxonomy data |
+| `GET /api/related-systems` | GET | Public / All | Public / All | Public / All | Reference integration systems data |
+| `POST /api/tickets` | POST | Allowed | **Forbidden (403)** | **Forbidden (403)** | Exclusively restricted to `REQUESTER` role; authenticated user recorded as `requesterId` |
+| `GET /api/tickets/my-tickets` | GET | Owned Only | Owned Only | Owned Only | Strictly filtered to `requesterId = currentUser.id` |
+| `GET /api/tickets/:id` | GET | Owned Only | Any Ticket | Any Ticket | Requester receives `404 Not Found` for unowned tickets to prevent leaking ticket existence |
+| `POST /api/tickets/:id/attachments` | POST | Owned Only | Any Ticket | Any Ticket | Cap of 5 active attachments per ticket enforced |
+| `GET /api/attachments/:id` | GET | Owned Only | Any Ticket | Any Ticket | Attachment metadata lookup |
+| `GET /api/attachments/:id/download` | GET | Owned Only | Any Ticket | Any Ticket | Blocked if `isRemoved = true` (`410 Gone`) |
+| `PATCH /api/attachments/:id/soft-remove` | PATCH | Owned Only | Any Ticket | Any Ticket | Requires `removedReason` ($\ge 3$ chars) |
+| `GET /api/tickets/:id/comments` | GET | Owned Only | Any Ticket | Any Ticket | Public comments stream |
+| `POST /api/tickets/:id/comments` | POST | Owned Only | Any Ticket | Any Ticket | Append-only public communication |
+| `GET /api/tickets/:id/notes` | GET | **Forbidden (403)** | Allowed | Allowed | Requesters blocked without note disclosure |
+| `POST /api/tickets/:id/notes` | POST | **Forbidden (403)** | Allowed | Allowed | Append-only internal operational notes |
+| `GET /api/staff/tickets` | GET | **Forbidden (403)** | Allowed | Allowed | Shared Ticket Queue with filters & pagination |
+| `PATCH /api/staff/tickets/:id/claim` | PATCH | **Forbidden (403)** | Allowed | Allowed | Claim unassigned ticket (`ticketOwnerId = auth.userId`) |
+| `PATCH /api/staff/tickets/:id/assign` | PATCH | **Forbidden (403)** | Allowed | Allowed | Assign ticket to active IT Staff or Administrator account |
+| `PATCH /api/staff/tickets/:id/priority` | PATCH | **Forbidden (403)** | Allowed | Allowed | Modifies `itPriority` (`LOW`, `MEDIUM`, `HIGH`, `URGENT`) |
+| `PATCH /api/staff/tickets/:id/status` (Active transitions) | PATCH | **Forbidden (403)** | Allowed | Allowed | Enforces approved lifecycle transition matrix (`BR-08`) |
+| `PATCH /api/staff/tickets/:id/status` (Resolve ticket) | PATCH | **Forbidden (403)** | Allowed (Subject to Gate) | Allowed (Subject to Gate) | **Enforces Resolution Gate (BR-09)** ($\ge 1$ action, 0 incomplete, 0 open follow-ups, non-empty summary) |
+| `POST /api/tickets/:id/indicate-resolved` | POST | Owned Only | **Forbidden (403)** | **Forbidden (403)** | Advisory; stamps flag/timestamp and logs audit comment. Does NOT advance status or satisfy Resolution Gate |
+| `PATCH /api/tickets/:id/reopen` | PATCH | Owned Only (RESOLVED) | Allowed | Allowed | Requesters may reopen owned resolved tickets; Staff/Admin can reopen resolved or closed tickets |
+| `PATCH /api/tickets/:id/cancel` | PATCH | Owned Only (NEW) | Allowed | Allowed | Requesters can only cancel owned tickets while still `NEW`; Staff/Admin can cancel active tickets |
+| `GET /api/tickets/:id/actions` | GET | Owned Only (Read-Only) | Any Ticket | Any Ticket | Chronological order (`actionDateTime ASC, id ASC`); staff emails hidden for Requesters; unowned returns `404 Not Found` |
+| `POST /api/tickets/:id/actions` | POST | **Forbidden (403)** | Allowed | Allowed | Auto-assigns `performedById = auth.userId`; active assignee check; duplicate check via `clientActionId`; closed/cancelled tickets blocked (`400 Bad Request`) |
+| `PATCH /api/tickets/:id/actions/:actionId` | PATCH | **Forbidden (403)** | Allowed | Allowed | Updates description, status, or assignee; optimistic concurrency check (`expectedVersion`); closed/cancelled tickets blocked (`400 Bad Request`) |
+| `PATCH /api/tickets/:id/actions/:actionId` (`resolveFollowUp: true`) | PATCH | **Forbidden (403)** | Allowed | Allowed | Stamps `followUpResolvedAt = now()`; preserves historical `followUpNote` |
+| `POST /api/tickets/:id/actions/:actionId/cancel` | POST | **Forbidden (403)** | Allowed | Allowed | Sets status to `CANCELLED` with audit reason; hard deletion strictly prohibited |
+| `GET /api/dashboard/requester` | GET | Allowed (Owned Only) | Allowed (Personal) | Allowed (Personal) | Summarizes metrics and recent tickets strictly for authenticated user's owned requests |
+| `GET /api/dashboard/staff` | GET | **Forbidden (403)** | Allowed | Allowed | Shared operational metrics, velocity deltas (`deltaFromYesterday`), and open actions count |
+| `GET /api/dashboard/admin` | GET | **Forbidden (403)** | **Forbidden (403)** | Allowed | Combines IT Staff operational queue metrics with user account summary metrics |
+| `GET /api/admin/users` | GET | **Forbidden (403)** | **Forbidden (403)** | Allowed | User list with search & role filters |
+| `POST /api/admin/users` | POST | **Forbidden (403)** | **Forbidden (403)** | Allowed | Create user with initial password (`mustChangePassword = true`) |
+| `PATCH /api/admin/users/:id` | PATCH | **Forbidden (403)** | **Forbidden (403)** | Allowed | Edit user details; blocks self-deactivation and last active admin demotion/deactivation |
+| `POST /api/admin/users/:id/reset-password` | POST | **Forbidden (403)** | **Forbidden (403)** | Allowed | Sets new initial password; resets `mustChangePassword = true` |
+
+---
+
+## 7. UI Specification Summary
 
 The UI strictly adheres to the **Zen Green Design System**:
 1. **Application Shell (`AppHeader.tsx`)**:
@@ -287,9 +313,9 @@ The UI strictly adheres to the **Zen Green Design System**:
 
 ---
 
-## 7. Data Changes
+## 8. Data Changes (Prisma Schema Design)
 
-### 7.1. New Enums and Models
+### 8.1. New Enums and Models
 
 1. **New Enum `ActionStatus`**:
    ```prisma
@@ -340,7 +366,7 @@ The UI strictly adheres to the **Zen Green Design System**:
    * `User`:
      * Add relations: `performedActions ActionTaken[] @relation("ActionPerformer")`, `assignedActions ActionTaken[] @relation("ActionAssignee")`.
 
-### 7.2. Database Design Justifications
+### 8.2. Database Design Justifications
 1. **Explicit Dual User Attribution on ActionTaken (`performedBy` vs `assignee`)**:
    * *Justification*: In service desk operations, the technician diagnosing an issue (`performedById`, auto-captured) may delegate a follow-up action to another staff specialist (`assigneeId`). Decoupling these fields guarantees tamper-proof auditability of who logged the record while providing operational flexibility to assign accountability for open tasks.
 2. **Dedicated `followUpResolvedAt` Timestamp**:
@@ -350,14 +376,14 @@ The UI strictly adheres to the **Zen Green Design System**:
 4. **Composite Index `[ticketId, status]` and `[ticketId, actionDateTime]`**:
    * *Justification*: The Resolution Gate executes `COUNT` and status checks on actions belonging to a single ticket. The `[ticketId, status]` index allows the database to check for pending or in-progress actions with an index scan rather than a full table scan.
 
-### 7.3. Migration & Backfill Strategy
+### 8.3. Migration & Backfill Strategy
 * Migration name: `20261001_actions_taken_and_dashboards`.
 * Purely additive: creates `ActionStatus` enum, creates `ActionTaken` table, and adds `resolvedAt` and `version` columns to `Ticket`.
 * Existing tickets and attachments from Labs 1–3 remain untouched.
 * Legacy tickets in `RESOLVED` or `CLOSED` status have `resolvedAt` backfilled to their `updatedAt` value.
 * Rollback: Dropping `ActionTaken` table and removing added columns fully restores the Lab 3 schema.
 
-### 7.4. Seed Data Idempotency
+### 8.4. Seed Data Idempotency
 * `server/prisma/seed.ts` is updated to seed realistic Actions Taken.
 * To guarantee 100% idempotency without natural keys, seed entries query existing tickets by `ticketNumber` and check whether actions exist before inserting.
 * Seeds cover:
@@ -370,7 +396,7 @@ The UI strictly adheres to the **Zen Green Design System**:
 
 ---
 
-## 8. API Contract Summary
+## 9. API Contract Summary
 
 1. **Actions Taken Endpoints**:
    * `GET /api/tickets/:id/actions`: Returns actions for ticket (stable order: `actionDateTime ASC, id ASC`).
@@ -388,7 +414,7 @@ The UI strictly adheres to the **Zen Green Design System**:
 
 ---
 
-## 9. Acceptance Criteria (Given-When-Then)
+## 10. Acceptance Criteria (Given-When-Then)
 
 * **AC-01 (Valid Action Taken Creation)**:
   * *Given* an authenticated IT Staff or Administrator user and valid action payload,
@@ -473,7 +499,7 @@ The UI strictly adheres to the **Zen Green Design System**:
 
 ---
 
-## 10. Product Definition of Done (DoD)
+## 11. Product Definition of Done (DoD)
 
 Before the Lab 4 increment is declared complete:
 1. **Scope & Code Completeness**:
@@ -498,7 +524,7 @@ Before the Lab 4 increment is declared complete:
 
 ---
 
-## 11. Assumptions and Decisions
+## 12. Assumptions and Decisions
 
 1. **Performer vs Assignee Distinction**:
    * *Decision*: An Action Taken records `performedById` as the creator/performer automatically from the JWT token, and optionally supports an `assigneeId` for tasks delegated to another staff member.
