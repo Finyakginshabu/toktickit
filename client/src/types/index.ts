@@ -147,6 +147,8 @@ export interface Ticket {
   resolutionSummary?: string | null;
   problemAppearsResolved?: boolean;
   problemAppearsResolvedAt?: string | null;
+  resolvedAt?: string | null;
+  version?: number;
   createdAt: string;
   updatedAt: string;
   requester?: RequesterUser | User;
@@ -157,6 +159,7 @@ export interface Ticket {
   attachmentCount?: number;
   publicComments?: PublicComment[];
   internalNotes?: InternalNote[];
+  actionsTaken?: ActionTaken[];
 }
 
 export interface PaginatedTicketsResponse {
@@ -167,4 +170,64 @@ export interface PaginatedTicketsResponse {
     total: number;
     totalPages: number;
   };
+}
+
+export type ActionStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  performedById: number;
+  assigneeId?: number | null;
+  actionDateTime: string;
+  actionDescription: string;
+  result?: string | null;
+  status: ActionStatus;
+  followUpRequired: boolean;
+  followUpNote?: string | null;
+  followUpResolvedAt?: string | null;
+  attachmentNotes?: string | null;
+  cancellationReason?: string | null;
+  clientActionId?: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  performedBy?: {
+    id: number;
+    name: string;
+    role: Role;
+    email?: string;
+  };
+  assignee?: {
+    id: number;
+    name: string;
+    role: Role;
+    email?: string;
+  } | null;
+}
+
+export interface CreateActionTakenPayload {
+  actionDescription: string;
+  result?: string | null;
+  status?: ActionStatus;
+  assigneeId?: number | null;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  cancellationReason?: string | null;
+  actionDateTime?: string;
+  clientActionId?: string;
+}
+
+export interface UpdateActionTakenPayload {
+  expectedVersion: number;
+  actionDescription?: string;
+  result?: string | null;
+  status?: ActionStatus;
+  assigneeId?: number | null;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  cancellationReason?: string | null;
+  resolveFollowUp?: boolean;
 }

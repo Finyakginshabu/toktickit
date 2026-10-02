@@ -38,6 +38,16 @@ enum TicketStatus {
 }
 
 // ---------------------------------------------------------------------------
+// Lab 4 Enums
+// ---------------------------------------------------------------------------
+enum ActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
 // Lab 3 Models
 // ---------------------------------------------------------------------------
 model User {
@@ -56,6 +66,8 @@ model User {
   assignedTickets    Ticket[]         @relation("TicketOwner")
   publicComments     PublicComment[]
   internalNotes      InternalNote[]
+  performedActions   ActionTaken[]    @relation("ActionPerformer")
+  assignedActions    ActionTaken[]    @relation("ActionAssignee")
 
   @@index([email])
   @@index([role, isActive])
@@ -93,6 +105,8 @@ model Ticket {
   resolutionSummary         String?
   problemAppearsResolved    Boolean         @default(false)
   problemAppearsResolvedAt  DateTime?
+  resolvedAt                DateTime?
+  version                   Int             @default(1)
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
 
@@ -103,12 +117,14 @@ model Ticket {
   attachments               Attachment[]
   publicComments            PublicComment[]
   internalNotes             InternalNote[]
+  actionsTaken              ActionTaken[]
 
   @@index([requesterId, createdAt])
   @@index([currentStatus])
   @@index([itPriority])
   @@index([ticketOwnerId])
   @@index([ticketNumber])
+  @@index([updatedAt])
 }
 
 model Attachment {
@@ -153,4 +169,36 @@ model InternalNote {
   author    User     @relation(fields: [authorId], references: [id])
 
   @@index([ticketId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4 Models
+// ---------------------------------------------------------------------------
+model ActionTaken {
+  id                 Int          @id @default(autoincrement())
+  ticketId           Int
+  performedById      Int
+  assigneeId         Int?
+  actionDateTime     DateTime     @default(now())
+  actionDescription  String       @db.VarChar(2000)
+  result             String?      @db.VarChar(2000)
+  status             ActionStatus @default(COMPLETED)
+  followUpRequired   Boolean      @default(false)
+  followUpNote       String?      @db.VarChar(2000)
+  followUpResolvedAt DateTime?
+  attachmentNotes    String?      @db.VarChar(1000)
+  cancellationReason String?      @db.VarChar(2000)
+  clientActionId     String?      @unique @db.Uuid
+  version            Int          @default(1)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  ticket             Ticket       @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  performedBy        User         @relation("ActionPerformer", fields: [performedById], references: [id])
+  assignee           User?        @relation("ActionAssignee", fields: [assigneeId], references: [id])
+
+  @@index([ticketId, actionDateTime])
+  @@index([ticketId, status])
+  @@index([performedById])
+  @@index([assigneeId])
 }
