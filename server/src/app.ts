@@ -10,6 +10,7 @@ import { Priority, TicketStatus } from "@prisma/client";
 import { authRouter } from "./routes/auth.js";
 import { staffRouter } from "./routes/staff.js";
 import { adminRouter } from "./routes/admin.js";
+import { actionsRouter } from "./routes/actions.js";
 import {
   authenticateToken,
   optionalAuthenticateToken,
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/tickets", actionsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1 — API health check
@@ -805,8 +807,11 @@ app.patch(
         currentStatus: upperStatus as TicketStatus,
       };
 
-      if (upperStatus === TicketStatus.RESOLVED && resolutionSummary !== undefined) {
-        updateData.resolutionSummary = typeof resolutionSummary === "string" ? resolutionSummary.trim() : null;
+      if (upperStatus === TicketStatus.RESOLVED) {
+        updateData.resolvedAt = new Date();
+        if (resolutionSummary !== undefined) {
+          updateData.resolutionSummary = typeof resolutionSummary === "string" ? resolutionSummary.trim() : null;
+        }
       }
 
       const updated = await prisma.ticket.update({
