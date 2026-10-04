@@ -79,14 +79,24 @@ export default function AppHeader() {
           )}
 
           {authUser?.role === "ADMINISTRATOR" && (
-            <button
-              type="button"
-              className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "user-management" ? "zen-nav-link active" : "zen-nav-link"}`}
-              onClick={() => handleNavClick("user-management")}
-            >
-              <span className="material-symbols-outlined fs-6">manage_accounts</span>
-              User Management
-            </button>
+            <>
+              <button
+                type="button"
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("ticket-queue")}
+              >
+                <span className="material-symbols-outlined fs-6">confirmation_number</span>
+                Ticket Queue
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "user-management" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("user-management")}
+              >
+                <span className="material-symbols-outlined fs-6">manage_accounts</span>
+                User Management
+              </button>
+            </>
           )}
         </nav>
 
@@ -169,14 +179,24 @@ export default function AppHeader() {
             )}
 
             {authUser?.role === "ADMINISTRATOR" && (
-              <button
-                type="button"
-                className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "user-management" ? "active" : ""}`}
-                onClick={() => handleNavClick("user-management")}
-              >
-                <span className="material-symbols-outlined">manage_accounts</span>
-                User Management
-              </button>
+              <>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "ticket-queue" ? "active" : ""}`}
+                  onClick={() => handleNavClick("ticket-queue")}
+                >
+                  <span className="material-symbols-outlined">confirmation_number</span>
+                  Ticket Queue
+                </button>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "user-management" ? "active" : ""}`}
+                  onClick={() => handleNavClick("user-management")}
+                >
+                  <span className="material-symbols-outlined">manage_accounts</span>
+                  User Management
+                </button>
+              </>
             )}
 
             {/* User Profile Box in Mobile Drawer */}
