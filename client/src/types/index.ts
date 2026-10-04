@@ -172,22 +172,16 @@ export interface PaginatedTicketsResponse {
   };
 }
 
-export type ActionStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-
 export interface ActionTaken {
   id: number;
   ticketId: number;
   performedById: number;
-  assigneeId?: number | null;
   actionDateTime: string;
   actionDescription: string;
   result?: string | null;
-  status: ActionStatus;
   followUpRequired: boolean;
   followUpNote?: string | null;
-  followUpResolvedAt?: string | null;
   attachmentNotes?: string | null;
-  cancellationReason?: string | null;
   clientActionId?: string | null;
   version: number;
   createdAt: string;
@@ -198,23 +192,14 @@ export interface ActionTaken {
     role: Role;
     email?: string;
   };
-  assignee?: {
-    id: number;
-    name: string;
-    role: Role;
-    email?: string;
-  } | null;
 }
 
 export interface CreateActionTakenPayload {
   actionDescription: string;
   result?: string | null;
-  status?: ActionStatus;
-  assigneeId?: number | null;
   followUpRequired?: boolean;
   followUpNote?: string | null;
   attachmentNotes?: string | null;
-  cancellationReason?: string | null;
   actionDateTime?: string;
   clientActionId?: string;
 }
@@ -223,11 +208,8 @@ export interface UpdateActionTakenPayload {
   expectedVersion: number;
   actionDescription?: string;
   result?: string | null;
-  status?: ActionStatus;
-  assigneeId?: number | null;
   followUpRequired?: boolean;
   followUpNote?: string | null;
   attachmentNotes?: string | null;
-  cancellationReason?: string | null;
-  resolveFollowUp?: boolean;
 }
+

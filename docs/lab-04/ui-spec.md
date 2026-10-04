@@ -59,11 +59,6 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * `CLOSED`: Gray badge (`bg: #EDF2F7, text: #4A5568, border: 1px solid #CBD5E0`)
   * `REOPENED`: Warm Orange badge (`bg: #FFEDD5, text: #9A3412, border: 1px solid #FDBA74`)
   * `CANCELLED`: Red badge (`bg: #FED7D7, text: #9B2C2C, border: 1px solid #FEB2B2`)
-* **Action Taken Status Badges**:
-  * `PENDING`: Slate Gray pill (`bg: #EDF2F7, text: #4A5568, border: 1px solid #CBD5E0`)
-  * `IN_PROGRESS`: Amber pill (`bg: #FEEBC8, text: #7B341E, border: 1px solid #FBD38D`)
-  * `COMPLETED`: Green pill (`bg: #C6F6D5, text: #22543D, border: 1px solid #9AE6B4`)
-  * `CANCELLED`: Red pill (`bg: #FED7D7, text: #9B2C2C, border: 1px solid #FEB2B2`)
 * **Priority Badges**:
   * `LOW`: Slate Gray fill (`bg: #EDF2F7, text: #4A5568`)
   * `MEDIUM`: Soft Yellow fill (`bg: #FEFCBF, text: #744210`)
@@ -140,7 +135,6 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * Secondary indicators bar:
     * **Unassigned Tickets**: Count highlighted with amber warning icon.
     * **High / Urgent Priority**: Count highlighted with crimson indicator.
-    * **My Open Actions**: Count of active actions assigned to or performed by the current staff member (`myOpenActionsCount`).
   * **Card Interaction & Drill-Down**:
     * Each card has an accessible ARIA label (e.g. `aria-label="New tickets: 14, +1 from yesterday. Click to view list"`).
     * Clicking any card routes to the Ticket Queue with filter pre-selected (e.g. clicking *My Assigned* navigates to `/staff/queue?ownerId=me`).
@@ -195,41 +189,38 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
 
 ### 4.4. Actions Taken Section on Ticket Detail (`ActionsTakenSection.tsx`)
 *(Reference: SE Lab 4 Handout Section 8.3)*
-* **Placement**: Located in the tabbed workspace on Ticket Detail alongside *Public Comments*, *Internal Notes*, and *Attachments*.
-* **Tab Header**: "Actions Taken (N)" with dynamic count badge.
+* **Placement**: Located in the ticket workspace tabs below Attachments.
+* **Workspace Tabs**:
+  * IT Staff / Administrator: `Public Comments`, `Internal Notes`, and `Actions Taken`, each with a dynamic count badge.
+  * Requester: `Public Comments` and `Actions Taken`, each with a dynamic count badge; the `Internal Notes` tab is never rendered.
 * **Action Toolbar**:
   * For IT Staff / Admin: "+ Add Action Taken" primary button on the right.
   * For Requester: "+ Add Action Taken" button is completely absent.
 * **Actions Taken Table**:
   * Columns:
-    1. **Action Date/Time**: Formatted local date and time (`MMM DD, YYYY hh:mm A`).
+    1. **Date/Time**: Formatted local date and time (`MMM DD, YYYY hh:mm A`).
     2. **Description**: Clear description of work performed.
-    3. **Result**: Observed outcome or diagnostic finding (or "-" if pending).
-    4. **Performed By**: Auto-captured staff member name with IT Staff badge.
-    5. **Assignee**: Assigned staff name (or "Unassigned") with user badge.
-    6. **Status**: Action status pill (`COMPLETED`, `IN_PROGRESS`, `PENDING`, `CANCELLED`).
-    7. **Follow-Up**:
-       * If `followUpRequired = true && !followUpResolvedAt`: Amber pill `Follow-Up Needed`. Clicking or focusing expands an inline card showing `followUpNote`, with a "Mark Resolved" button for IT Staff.
-       * If `followUpRequired = true && followUpResolvedAt`: Green pill `Follow-Up Resolved`.
-       * If `followUpRequired = false`: Muted `None`.
-    8. **Attachment Notes**: Text pointer to relevant attachments (e.g. `See log_output.txt`).
-    9. **Actions (IT Staff/Admin only)**: "Edit" button and "Cancel" button. Cancel opens a confirmation dialog requiring a cancellation reason before submission.
+    3. **Result**: Optional observed outcome or diagnostic finding.
+    4. **Performed By**: Auto-captured staff member name in the same neutral badge style as Ticket Queue Owner.
+     5. **Follow-Up**:
+      * If `followUpRequired = true`: Show the `followUpNote` directly in the row/card without a separate flag or status label.
+      * If `followUpRequired = false`: Show muted `Not Required`.
+       * Follow-up has no resolved state or completion control.
+    6. **Attachment Notes**: Text pointer to relevant attachments (e.g. `See log_output.txt`).
+  * Use Title Case column labels. For IT Staff/Admin, clicking or keyboard-activating an action row/card opens the edit modal; no separate Actions column or row-level buttons are shown.
   * **Empty State**: "No actions taken recorded yet for this ticket. Use the button above to record technical diagnostics or actions."
-  * **Requester View**: Read-only presentation; edit, cancel, and add buttons are not rendered. Staff emails are excluded.
+  * **Requester View**: Read-only presentation in the Requester Actions Taken tab; row editing and add controls are not available. Staff emails are excluded.
 
 ### 4.5. Create / Edit Action Taken Modal (`ActionTakenModal.tsx`)
 * **Dialog Container**: Centered modal with backdrop, accessible keyboard focus trap, and focus return to triggering button upon close.
 * **Form Controls**:
   1. **Action Date/Time**: Datetime-local picker, defaulting to current time.
   2. **Performed By (auto)**: Read-only display of current authenticated user name (`--color-input-bg-readonly`).
-  3. **Assignee**: Select dropdown populated with active IT Staff and Administrators. Inactive accounts and Requesters are omitted.
-  4. **Status**: Select dropdown with options `COMPLETED` (default), `IN_PROGRESS`, `PENDING`, `CANCELLED`.
-  5. **Action Description**: Textarea (required, min 5 chars, max 2000 chars, placeholder: "Describe the specific technical action performed...").
-  6. **Result**: Textarea (required if status is `COMPLETED`, min 3 chars, max 2000 chars).
-  7. **Follow-Up Required?**: Switch toggle / checkbox (`Yes / No`).
-  8. **Follow-Up Note**: Textarea (dynamically appears and required if *Follow-Up Required* is checked; min 5 chars).
-  9. **Attachment Notes**: Text input (optional, max 1000 chars, placeholder: "e.g., Refer to error_screenshot.png in Attachments").
-  10. **Cancellation Reason**: Textarea shown and required when status is `CANCELLED` (trimmed, min 5 chars, max 2000 chars).
+  3. **Action Description**: Required textarea (5–2000 characters).
+  4. **Result**: Optional textarea (max 2000 characters).
+  5. **Follow-Up Required**: Toggle/checkbox.
+  6. **Follow-Up Note**: Dynamically shown and required when Follow-Up is checked (5–2000 characters).
+  7. **Attachment Notes**: Optional text input (max 1000 characters).
 * **Footer Actions**:
   * "Save Action": Primary green button, displays spinner when submitting.
   * "Cancel": Neutral secondary button.
@@ -244,7 +235,7 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * Clicking it opens `ResolutionGateModal.tsx` prompting for the required **Resolution Summary**.
   * The modal evaluates the Resolution Gate criteria (`BR-09`) against the ticket's current state and displays a dynamic checklist:
     * Passed item: `✓ [Requirement Satisfied]` in forest green.
-    * Failed item: `✕ [Requirement Unmet]` in red/amber with specific action IDs (e.g. `Action #3 has pending follow-up that must be resolved`).
+    * Failed item: `✕ [Requirement Unmet]` in red/amber with relevant action IDs when available (e.g. a missing Action Taken).
   * The "Confirm Resolution" submit button remains disabled with a tooltip until all criteria in the checklist are green.
 
 ### 4.7. Optimistic Concurrency Conflict Feedback
@@ -290,9 +281,9 @@ Screenshots for final grading submission will be placed in `artifacts/lab-04/scr
    * `requester-dashboard-desktop.png`: 4 metric cards, Recent Tickets table, Create Ticket CTA.
    * `requester-dashboard-mobile.png`: Stacked mobile view.
 3. `artifacts/lab-04/screenshots/actions-taken/`:
-   * `actions-taken-list.png`: Full table with performer, assignee, badges, follow-up flags.
-   * `action-taken-create-modal.png`: Create modal with active assignee select and follow-up inputs.
-   * `action-taken-edit-modal.png`: Edit modal changing action status.
+  * `actions-taken-list.png`: Full table with performer, follow-up details, and attachment notes.
+  * `action-taken-create-modal.png`: Create modal with optional result and follow-up inputs.
+  * `action-taken-edit-modal.png`: Edit modal updating action details and follow-up information.
    * `resolution-gate-blocked.png`: Resolution Gate blocking alert modal with checklist.
    * `requester-actions-view.png`: Requester read-only view.
 

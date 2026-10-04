@@ -19,6 +19,7 @@ import {
   InternalNote,
 } from "../api.js";
 import AttachmentSection from "./AttachmentSection.js";
+import ActionsTakenSection from "./ActionsTakenSection.js";
 
 const PERMITTED_NEXT_STATUSES: Record<TicketStatus, TicketStatus[]> = {
   NEW: ["OPEN"],
@@ -46,7 +47,8 @@ export default function StaffTicketDetail() {
   const [notes, setNotes] = useState<InternalNote[]>([]);
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
   const [notesLoading, setNotesLoading] = useState<boolean>(false);
-  const [activeCommsTab, setActiveCommsTab] = useState<"comments" | "notes">("comments");
+  const [actionsCount, setActionsCount] = useState<number>(0);
+  const [activeCommsTab, setActiveCommsTab] = useState<"comments" | "notes" | "actions">("comments");
 
   // Form states for adding comment & note
   const [commentInput, setCommentInput] = useState<string>("");
@@ -562,7 +564,7 @@ export default function StaffTicketDetail() {
         onAttachmentChanged={fetchTicket}
       />
 
-      {/* Communications — Tabbed Panel (below attachments) */}
+      {/* Ticket workspace tabs (below attachments) */}
       <div
         className="zen-card p-3 mt-4"
         style={activeCommsTab === "notes" ? { backgroundColor: "#FFFDF0", border: "1.5px solid #ECC94B" } : {}}
@@ -596,7 +598,39 @@ export default function StaffTicketDetail() {
               <span className="badge bg-warning-subtle text-dark border border-warning ms-1">{notes.length}</span>
             </button>
           </li>
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              id="actions-taken-tab"
+              className={`nav-link d-flex align-items-center gap-1 ${activeCommsTab === "actions" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveCommsTab("actions")}
+              aria-selected={activeCommsTab === "actions"}
+              aria-controls="actions-taken-panel"
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">construction</span>
+              Actions Taken
+              <span className="badge bg-light text-dark border ms-1">{actionsCount}</span>
+            </button>
+          </li>
         </ul>
+
+        <div
+          id="actions-taken-panel"
+          data-testid="actions-taken-panel"
+          role="tabpanel"
+          aria-labelledby="actions-taken-tab"
+          className={activeCommsTab !== "actions" ? "d-none" : ""}
+        >
+          <ActionsTakenSection
+            ticketId={ticket.id}
+            ticketStatus={ticket.currentStatus}
+            isRequester={false}
+            embedded
+            onActionCountChange={setActionsCount}
+            onActionsChanged={fetchTicket}
+          />
+        </div>
 
         {/* Public Comments Panel */}
         <div data-testid="public-comments-panel" className={activeCommsTab !== "comments" ? "d-none" : ""}>

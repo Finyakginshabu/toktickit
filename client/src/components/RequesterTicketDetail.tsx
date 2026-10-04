@@ -11,6 +11,7 @@ import {
   PublicComment,
 } from "../api.js";
 import AttachmentSection from "./AttachmentSection.js";
+import ActionsTakenSection from "./ActionsTakenSection.js";
 
 export default function RequesterTicketDetail() {
   const { requester, selectedTicketId, setSelectedTicketId, setActiveTab } = useRequester();
@@ -26,6 +27,8 @@ export default function RequesterTicketDetail() {
   const [commentInput, setCommentInput] = useState<string>("");
   const [commentSubmitting, setCommentSubmitting] = useState<boolean>(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [actionsCount, setActionsCount] = useState<number>(0);
+  const [activeTicketTab, setActiveTicketTab] = useState<"comments" | "actions">("comments");
 
   const [resolveLoading, setResolveLoading] = useState<boolean>(false);
   const [resolveFeedback, setResolveFeedback] = useState<{ type: "success" | "danger"; message: string } | null>(null);
@@ -382,8 +385,66 @@ export default function RequesterTicketDetail() {
         onAttachmentChanged={fetchTicket}
       />
 
-      {/* Public Comments Thread */}
-      <div className="zen-card p-4 mt-4" data-testid="requester-comments-section">
+      {/* Ticket workspace tabs */}
+      <div className="zen-card p-3 mt-4" data-testid="requester-ticket-workspace">
+        <ul className="nav nav-tabs mb-3" role="tablist">
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              id="requester-comments-tab"
+              className={`nav-link d-flex align-items-center gap-1 ${activeTicketTab === "comments" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveTicketTab("comments")}
+              aria-selected={activeTicketTab === "comments"}
+              aria-controls="requester-comments-panel"
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">forum</span>
+              Public Comments
+              <span className="badge bg-light text-dark border ms-1">{comments.length}</span>
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              id="requester-actions-tab"
+              className={`nav-link d-flex align-items-center gap-1 ${activeTicketTab === "actions" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveTicketTab("actions")}
+              aria-selected={activeTicketTab === "actions"}
+              aria-controls="requester-actions-panel"
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">construction</span>
+              Actions Taken
+              <span className="badge bg-light text-dark border ms-1">{actionsCount}</span>
+            </button>
+          </li>
+        </ul>
+
+        <div
+          id="requester-actions-panel"
+          data-testid="requester-actions-panel"
+          role="tabpanel"
+          aria-labelledby="requester-actions-tab"
+          className={activeTicketTab !== "actions" ? "d-none" : ""}
+        >
+          <ActionsTakenSection
+            ticketId={ticket.id}
+            ticketStatus={ticket.currentStatus}
+            isRequester={true}
+            embedded
+            onActionCountChange={setActionsCount}
+            onActionsChanged={fetchTicket}
+          />
+        </div>
+
+        {/* Public Comments Thread */}
+        <div
+          id="requester-comments-panel"
+          role="tabpanel"
+          aria-labelledby="requester-comments-tab"
+          className={activeTicketTab !== "comments" ? "d-none" : ""}
+          data-testid="requester-comments-section"
+        >
         <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
           <div>
             <h2 className="h5 fw-bold text-success mb-0 d-flex align-items-center gap-2">
@@ -480,6 +541,7 @@ export default function RequesterTicketDetail() {
             )}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

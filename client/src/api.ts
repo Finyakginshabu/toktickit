@@ -9,6 +9,9 @@ import {
   User,
   PublicComment,
   InternalNote,
+  ActionTaken,
+  CreateActionTakenPayload,
+  UpdateActionTakenPayload,
 } from "./types/index.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -51,7 +54,6 @@ export async function getCategories(): Promise<Category[]> {
 
   return res.json();
 }
-
 export async function getRequesters(): Promise<RequesterUser[]> {
   const res = await fetch(`${API_URL}/api/requesters`).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -615,6 +617,97 @@ export async function resetAdminUserPassword(
 
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Actions Taken APIs
+// ---------------------------------------------------------------------------
+
+export async function getTicketActions(ticketId: number): Promise<ActionTaken[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to fetch actions taken (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function createTicketAction(
+  ticketId: number,
+  payload: CreateActionTakenPayload
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to record action taken (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function updateTicketAction(
+  ticketId: number,
+  actionId: number,
+  payload: UpdateActionTakenPayload
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions/${actionId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to update action taken (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+
+
+
+
+
+
+
 
 
 

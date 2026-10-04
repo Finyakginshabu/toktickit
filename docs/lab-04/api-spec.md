@@ -13,10 +13,10 @@
   ```json
   {
     "error": {
-      "code": "BAD_REQUEST | UNAUTHORIZED | FORBIDDEN | NOT_FOUND | CONFLICT | RESOLUTION_GATE_BLOCKED | INVALID_ASSIGNEE | INVALID_TRANSITION | VALIDATION_ERROR | INTERNAL_ERROR",
+      "code": "BAD_REQUEST | UNAUTHORIZED | FORBIDDEN | NOT_FOUND | CONFLICT | RESOLUTION_GATE_BLOCKED | VALIDATION_ERROR | INTERNAL_ERROR",
       "message": "Descriptive error message",
       "details": [
-        { "code": "UNRESOLVED_FOLLOW_UP", "actionId": 3, "field": "followUpNote", "message": "Action #3 has pending follow-up that must be resolved." }
+        { "code": "NO_ACTIONS_TAKEN", "message": "At least one Action Taken must be recorded before resolving." }
       ]
     }
   }
@@ -43,24 +43,15 @@
       "actionDateTime": "2026-10-01T09:30:00.000Z",
       "actionDescription": "Inspected hardware docking station and replaced faulty USB-C cable.",
       "result": "External monitor now recognizes input signal consistently.",
-      "status": "COMPLETED",
       "performedById": 2,
       "performedBy": {
         "id": 2,
         "name": "Michael Brown",
         "role": "IT_STAFF"
       },
-      "assigneeId": 3,
-      "assignee": {
-        "id": 3,
-        "name": "Sarah Johnson",
-        "role": "IT_STAFF"
-      },
-      "cancellationReason": null,
       "clientActionId": null,
       "followUpRequired": true,
       "followUpNote": "Verify with user on Friday if screen flickering recurs.",
-      "followUpResolvedAt": "2026-10-01T14:20:00.000Z",
       "attachmentNotes": "Refer to dock_serial_photo.jpg in attachments.",
       "version": 2,
       "createdAt": "2026-10-01T09:35:00.000Z",
@@ -86,9 +77,6 @@
     "actionDateTime": "2026-10-01T09:30:00.000Z",
     "actionDescription": "Ran hardware diagnostics and memory benchmark.",
     "result": "Memory module passed all tests.",
-    "status": "COMPLETED",
-    "assigneeId": 3,
-    "cancellationReason": null,
     "followUpRequired": false,
     "followUpNote": null,
     "attachmentNotes": "See test_log.txt",
@@ -98,18 +86,15 @@
 * **Validation & Business Rules**:
   * The ticket must NOT be in `CLOSED` or `CANCELLED` status (returns `400 Bad Request`).
   * `actionDescription`: Required string, length between 5 and 2000 characters.
-  * `status`: Enum (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`); defaults to `COMPLETED`.
-  * `result`: Required ($\ge 3$ characters) if `status === 'COMPLETED'`; optional for `PENDING` or `IN_PROGRESS`.
-  * `cancellationReason`: Required, trimmed, 5–2000 characters when `status === 'CANCELLED'`; otherwise null or omitted.
-  * `assigneeId`: Optional integer. If provided, must reference an active user (`isActive = true`) with role `IT_STAFF` or `ADMINISTRATOR`. Inactive users or Requesters are rejected with `400 Bad Request` (`INVALID_ASSIGNEE`).
+  * `result`: Optional string, maximum 2000 characters.
   * `followUpRequired`: Boolean; defaults to `false`.
   * `followUpNote`: Required if `followUpRequired === true` ($\ge 5$ characters); must be null/empty if `false`.
   * `clientActionId`: Optional UUID, unique for the lifetime of the action record. A repeated key returns the original record without duplicate insertion, including retries after 60 seconds.
 * **Success Responses**:
-  * `201 Created`: Returns the created `ActionTaken` object with nested `performedBy` and `assignee` details.
+  * `201 Created`: Returns the created `ActionTaken` object with nested `performedBy` details.
   * `200 OK`: A replayed `clientActionId` returns the existing action with `Idempotent-Replay: true` response header.
 * **Error Responses**:
-  * `400 Bad Request`: Validation error, inactive assignee, or ticket is closed/cancelled.
+  * `400 Bad Request`: Validation error or ticket is closed/cancelled.
   * `401 Unauthorized`: Unauthenticated.
   * `403 Forbidden`: Requester role.
   * `404 Not Found`: Target ticket does not exist.
@@ -117,7 +102,7 @@
 ---
 
 ### 2.3. `PATCH /api/tickets/:ticketId/actions/:actionId`
-* **Description**: Updates an existing Action Taken record. Supports updating descriptions, transitioning status, reassigning, and resolving follow-ups.
+* **Description**: Updates an existing Action Taken record's description, result, and follow-up details.
 * **Authorization**: `IT_STAFF`, `ADMINISTRATOR` only.
 * **Parameters**:
   * `ticketId` (path parameter, integer, required).
@@ -127,43 +112,28 @@
   {
     "actionDescription": "Updated action description...",
     "result": "Diagnostic verified.",
-    "status": "COMPLETED",
-    "cancellationReason": null,
-    "assigneeId": 4,
     "followUpRequired": true,
     "followUpNote": "Check again on Monday",
-    "resolveFollowUp": true,
     "expectedVersion": 1
   }
   ```
 * **Rules & Optimistic Concurrency**:
   * `expectedVersion`: Required integer. If the record's current `version !== expectedVersion`, the request is rejected with `409 Conflict`.
-  * If `status === 'CANCELLED'`, `cancellationReason` is required, trimmed, and 5–2000 characters. A cancelled action is terminal and cannot be edited or reopened.
-  * If `resolveFollowUp: true`, sets `followUpResolvedAt = now()`.
+  * `result`: Optional string, maximum 2000 characters; it may be cleared with `null`.
   * Rejects updates on tickets that are `CLOSED` or `CANCELLED`.
 * **Success Response (`200 OK`)**:
   Returns updated `ActionTaken` object with incremented `version`.
 * **Error Responses**:
-  * `400 Bad Request`: Validation failure or illegal action status transition.
+  * `400 Bad Request`: Validation failure.
   * `403 Forbidden`: Unauthorized role.
   * `404 Not Found`: Action or Ticket not found.
   * `409 Conflict`: Concurrent update detected.
 
 ---
 
-### 2.4. `POST /api/tickets/:ticketId/actions/:actionId/cancel`
-* **Description**: Cancels an Action Taken line. Hard deletion is prohibited to preserve full service-desk auditability.
-* **Authorization**: `IT_STAFF`, `ADMINISTRATOR` only.
-* **Request Body**:
-  ```json
-  {
-    "reason": "Hardware replacement is no longer necessary; issue was software-related.",
-    "expectedVersion": 1
-  }
-  ```
-* **Validation**: `reason` is required, trimmed, and 5–2000 characters; it is persisted as `cancellationReason` and retained in the action audit record.
-* **Success Response (`200 OK`)**:
-  Returns action with `status: "CANCELLED"`, `cancellationReason`, and updated `version`.
+### 2.4. `DELETE /api/tickets/:ticketId/actions/:actionId`
+* **Description**: Physical deletion of Action Taken records is prohibited to preserve the audit history.
+* **Authorization**: Authenticated users only; Requesters receive `403 Forbidden`, and other roles receive `405 Method Not Allowed`.
 
 ---
 
@@ -227,7 +197,6 @@
       "myAssignedTickets": 16,
       "unassignedTickets": 9,
       "highUrgentTickets": 11,
-      "myOpenActionsCount": 4
     },
     "deltas": {
       "newTickets": 1,
@@ -268,7 +237,6 @@
   * `myAssignedTickets`: `Ticket.count({ where: { ticketOwnerId: auth.userId, currentStatus: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] } } })`
   * `unassignedTickets`: `Ticket.count({ where: { ticketOwnerId: null, currentStatus: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] } } })`
   * `highUrgentTickets`: `Ticket.count({ where: { itPriority: { in: ['HIGH', 'URGENT'] }, currentStatus: { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] } } })`
-  * `myOpenActionsCount`: `ActionTaken.count({ where: { OR: [{ performedById: auth.userId }, { assigneeId: auth.userId }], status: { in: ['PENDING', 'IN_PROGRESS'] } } })`
   * `deltas`: For each primary card, computes `countToday - countYesterday` evaluated at midnight `Asia/Bangkok` boundaries.
   * `recentTickets`: Top 5 tickets system-wide ordered by `updatedAt DESC` updated within the last 30 calendar days. Empty array `[]` if none.
 
@@ -288,7 +256,6 @@
       "myAssignedTickets": 16,
       "unassignedTickets": 9,
       "highUrgentTickets": 11,
-      "myOpenActionsCount": 4
     },
     "userMetrics": {
       "totalUsers": 28,
@@ -353,9 +320,7 @@
   `resolutionSummary` is required only when the requested status is `RESOLVED`; closing an already resolved ticket does not replace its summary.
   The server performs an atomic evaluation inside a database transaction:
   1. Checks if ticket has $\ge 1$ `ActionTaken` record.
-  2. Checks if any `ActionTaken` has `status` $\in$ {`PENDING`, `IN_PROGRESS`}.
-  3. Checks if any `ActionTaken` has `followUpRequired === true && followUpResolvedAt === null && status !== 'CANCELLED'`.
-  4. Checks if `resolutionSummary` is provided ($\ge 5$ characters).
+  2. Checks if `resolutionSummary` is provided ($\ge 5$ characters).
   If any check fails, returns `400 Bad Request` with:
   ```json
   {
@@ -364,8 +329,6 @@
       "message": "Ticket does not satisfy resolution gate requirements.",
       "details": [
         { "code": "NO_ACTIONS_TAKEN", "message": "At least one Action Taken must be recorded before resolving." },
-        { "code": "INCOMPLETE_ACTION", "actionId": 5, "message": "Action #5 is currently in progress; complete or cancel it first." },
-        { "code": "UNRESOLVED_FOLLOW_UP", "actionId": 3, "field": "followUpNote", "message": "Action #3 has pending follow-up that must be resolved." },
         { "code": "MISSING_RESOLUTION_SUMMARY", "field": "resolutionSummary", "message": "Resolution summary is required (minimum 5 characters)." }
       ]
     }

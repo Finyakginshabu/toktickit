@@ -224,6 +224,22 @@ describe("Lab 3 Staff Ticket Detail Operational Controls & Discussions Suite (UI
     it("renders Public Comments panel and Private Internal Notes panel with distinct security styling (UI-06, AC-16, AC-17)", async () => {
       const ticket = makeTicket();
       vi.spyOn(api, "getTicketDetail").mockResolvedValue(ticket);
+      vi.spyOn(api, "getTicketActions").mockResolvedValue([{
+        id: 5,
+        ticketId: 12,
+        performedById: 2,
+        actionDateTime: "2026-09-17T10:20:00.000Z",
+        actionDescription: "Checked VPN gateway logs for dropped sessions.",
+        result: null,
+        followUpRequired: false,
+        followUpNote: null,
+        attachmentNotes: null,
+        clientActionId: null,
+        version: 1,
+        createdAt: "2026-09-17T10:20:00.000Z",
+        updatedAt: "2026-09-17T10:20:00.000Z",
+        performedBy: { id: 2, name: "Alice Support", role: "IT_STAFF" },
+      }]);
 
       renderStaffTicketDetail(ticket);
 
@@ -243,6 +259,11 @@ describe("Lab 3 Staff Ticket Detail Operational Controls & Discussions Suite (UI
       // Verify sample contents rendered
       expect(screen.getByText(/We have checked the VPN gateway/i)).toBeInTheDocument();
       expect(screen.getByText(/Known issue on Gateway cluster 3/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("tab", { name: /Actions Taken 1/i }));
+      expect(screen.getByTestId("actions-taken-panel")).toBeVisible();
+      expect(screen.getByTestId("public-comments-panel")).toHaveClass("d-none");
+      expect(screen.getByTestId("internal-notes-panel")).toHaveClass("d-none");
     });
 
     it("submitting a public comment invokes createPublicComment (UI-06, AC-16)", async () => {
