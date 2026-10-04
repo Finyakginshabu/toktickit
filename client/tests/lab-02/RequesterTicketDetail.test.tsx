@@ -150,6 +150,31 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     expect(screen.getByText("screen_issue.png")).toBeInTheDocument();
   });
 
+  it("shows Actions Taken in its own tab without exposing Internal Notes", async () => {
+    localStorage.setItem("toktickit_dev_requester_id", "1");
+
+    const sampleTicket = makeTicket();
+    vi.spyOn(api, "getTickets").mockResolvedValue(makePageResponse([sampleTicket]));
+    vi.spyOn(api, "getTicketDetail").mockResolvedValue(sampleTicket);
+    vi.spyOn(api, "getPublicComments").mockResolvedValue([]);
+    vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
+
+    render(<App />);
+
+    fireEvent.click((await screen.findAllByText("TKT-2026-000001"))[0]);
+    expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
+
+    expect(screen.getByRole("tab", { name: /Public Comments/i })).toBeInTheDocument();
+    const actionsTab = screen.getByRole("tab", { name: /Actions Taken 0/i });
+    expect(screen.queryByRole("tab", { name: /Internal Notes/i })).not.toBeInTheDocument();
+
+    fireEvent.click(actionsTab);
+
+    expect(screen.getByTestId("requester-actions-panel")).toBeVisible();
+    expect(screen.getByTestId("actions-taken-section")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add Action Taken/i })).not.toBeInTheDocument();
+  });
+
   // UI-08b: Cross-requester / unauthorized ticket access displays error alert
   it("displays unauthorized error alert when accessing non-owned ticket (UI-08, AC-14, BR-05)", async () => {
     localStorage.setItem("toktickit_dev_requester_id", "1");

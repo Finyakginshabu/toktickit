@@ -14,7 +14,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
   let adminUser: any;
   let requesterUser: any;
   let otherRequesterUser: any;
-  let inactiveStaffUser: any;
   let openTicket: any;
   let closedTicket: any;
   let cancelledTicket: any;
@@ -52,12 +51,7 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
     otherRequesterToken = otherReqLogin.body.token;
     otherRequesterUser = otherReqLogin.body.user;
 
-    // 5. Query inactive staff member
-    inactiveStaffUser = await prisma.user.findUnique({
-      where: { email: "staff.inactive@toktickit.local" },
-    });
-
-    // 6. Query tickets for testing
+    // 5. Query tickets for testing
     openTicket = await prisma.ticket.findUnique({
       where: { ticketNumber: "TKT-2026-000004" }, // Owned by Jennifer, IN_PROGRESS
     });
@@ -85,7 +79,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       .send({
         actionDescription: "Performed firmware upgrade on lab switch and verified port status.",
         result: "All 24 ports communicating cleanly without dropped packets.",
-        status: "COMPLETED",
         performedById: 9999, // Should be ignored and authoritatively set to staffUser.id
       });
 
@@ -93,41 +86,34 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
     expect(res.body).toHaveProperty("id");
     expect(res.body.ticketId).toBe(openTicket.id);
     expect(res.body.performedById).toBe(staffUser.id);
-    expect(res.body.status).toBe("COMPLETED");
     expect(res.body.result).toBe("All 24 ports communicating cleanly without dropped packets.");
     expect(res.body.version).toBe(1);
     expect(res.body.performedBy.id).toBe(staffUser.id);
+    expect(res.body).not.toHaveProperty("status");
+    expect(res.body).not.toHaveProperty("assigneeId");
+    expect(res.body).not.toHaveProperty("assignee");
+    expect(res.body).not.toHaveProperty("cancellationReason");
   });
 
   // ---------------------------------------------------------------------------
-  // API-02: Assignee Eligibility Validation (Rejects Inactive Users & Requesters)
+  // API-02: Result is Optional and Action Fields Stay Removed
   // ---------------------------------------------------------------------------
-  it("rejects assignment to an inactive user or Requester (API-02, AC-02, FR-04, BR-04)", async () => {
-    // 1. Assign to inactive staff
-    const resInactive = await request(app)
+  it("allows actions without a result and ignores removed action fields", async () => {
+    const res = await request(app)
       .post(`/api/tickets/${openTicket.id}/actions`)
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Configured backup DNS routing table.",
-        status: "PENDING",
-        assigneeId: inactiveStaffUser.id,
+        status: "CANCELLED",
+        assigneeId: 123,
+        cancellationReason: "This legacy field is ignored.",
       });
 
-    expect(resInactive.status).toBe(400);
-    expect(resInactive.body.error.code).toBe("INVALID_ASSIGNEE");
-
-    // 2. Assign to requester
-    const resRequester = await request(app)
-      .post(`/api/tickets/${openTicket.id}/actions`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        actionDescription: "Configured backup DNS routing table.",
-        status: "PENDING",
-        assigneeId: requesterUser.id,
-      });
-
-    expect(resRequester.status).toBe(400);
-    expect(resRequester.body.error.code).toBe("INVALID_ASSIGNEE");
+    expect(res.status).toBe(201);
+    expect(res.body.result).toBeNull();
+    expect(res.body).not.toHaveProperty("status");
+    expect(res.body).not.toHaveProperty("assigneeId");
+    expect(res.body).not.toHaveProperty("cancellationReason");
   });
 
   // ---------------------------------------------------------------------------
@@ -139,7 +125,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Replaced faulty transceiver module.",
-        status: "IN_PROGRESS",
         followUpRequired: true,
         followUpNote: "   ", // Invalid empty follow-up note
       });
@@ -150,16 +135,15 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
   });
 
   // ---------------------------------------------------------------------------
-  // API-04: Follow-Up Resolution Without Note Erasure
+  // API-04: Follow-Up Note Editing
   // ---------------------------------------------------------------------------
-  it("resolves follow-up stamping followUpResolvedAt while preserving followUpNote (API-04, AC-03, FR-06, BR-06)", async () => {
+  it("updates the follow-up note while retaining the required flag", async () => {
     // 1. Create action with follow-up required
     const createRes = await request(app)
       .post(`/api/tickets/${openTicket.id}/actions`)
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Applied thermal paste and replaced cooling fan.",
-        status: "IN_PROGRESS",
         followUpRequired: true,
         followUpNote: "Check CPU operating temperature during peak load next Tuesday.",
       });
@@ -168,18 +152,19 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
     const actionId = createRes.body.id;
     const version = createRes.body.version;
 
-    // 2. Mark follow-up as resolved via PATCH
+    // 2. Update the note without a follow-up resolution state
     const patchRes = await request(app)
       .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         expectedVersion: version,
-        resolveFollowUp: true,
+        followUpNote: "Check CPU temperatures again after the next maintenance window.",
       });
 
     expect(patchRes.status).toBe(200);
-    expect(patchRes.body.followUpResolvedAt).not.toBeNull();
-    expect(patchRes.body.followUpNote).toBe("Check CPU operating temperature during peak load next Tuesday.");
+    expect(patchRes.body.followUpRequired).toBe(true);
+    expect(patchRes.body.followUpNote).toBe("Check CPU temperatures again after the next maintenance window.");
+    expect(patchRes.body).not.toHaveProperty("followUpResolvedAt");
     expect(patchRes.body.version).toBe(version + 1);
   });
 
@@ -200,9 +185,7 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       if (action.performedBy) {
         expect(action.performedBy.email).toBeUndefined();
       }
-      if (action.assignee) {
-        expect(action.assignee.email).toBeUndefined();
-      }
+      expect(action).not.toHaveProperty("assignee");
     }
   });
 
@@ -259,7 +242,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Attempt to add action on closed ticket.",
-        status: "COMPLETED",
         result: "Should fail.",
       });
 
@@ -272,7 +254,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Attempt to add action on cancelled ticket.",
-        status: "COMPLETED",
         result: "Should fail.",
       });
 
@@ -292,7 +273,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Network route flush and reload testing.",
-        status: "COMPLETED",
         result: "Route cleared cleanly.",
         clientActionId,
       });
@@ -306,7 +286,6 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
       .set("Authorization", `Bearer ${staffToken}`)
       .send({
         actionDescription: "Network route flush and reload testing.",
-        status: "COMPLETED",
         result: "Route cleared cleanly.",
         clientActionId,
       });
@@ -322,139 +301,22 @@ describe("Lab 4 Actions Taken API Suite (server/tests/lab-04/actions-taken.api.t
     expect(count).toBe(1);
   });
 
-  // ---------------------------------------------------------------------------
-  // API-21: Append-Only Cancellation via POST .../cancel
-  // ---------------------------------------------------------------------------
-  it("cancels an action persisting cancellationReason and increments version (API-21, FR-07, BR-07, AC-17)", async () => {
-    // 1. Create action
+  it("rejects physical deletion and leaves the action intact", async () => {
     const createRes = await request(app)
       .post(`/api/tickets/${openTicket.id}/actions`)
       .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        actionDescription: "Ordered external replacement PCIe network card.",
-        status: "PENDING",
-      });
+      .send({ actionDescription: "Record an action that must remain in history." });
 
     expect(createRes.status).toBe(201);
-    const actionId = createRes.body.id;
-    const version = createRes.body.version;
 
-    // 2. Cancel action with reason
-    const cancelRes = await request(app)
-      .post(`/api/tickets/${openTicket.id}/actions/${actionId}/cancel`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        reason: "Hardware vendor confirmed parts obsolescence; alternative card selected.",
-      });
-
-    expect(cancelRes.status).toBe(200);
-    expect(cancelRes.body.status).toBe("CANCELLED");
-    expect(cancelRes.body.cancellationReason).toBe(
-      "Hardware vendor confirmed parts obsolescence; alternative card selected."
-    );
-    expect(cancelRes.body.version).toBe(version + 1);
-
-    // 3. Physical DELETE attempt is blocked
-    const delRes = await request(app)
-      .delete(`/api/tickets/${openTicket.id}/actions/${actionId}`)
+    const deleteRes = await request(app)
+      .delete(`/api/tickets/${openTicket.id}/actions/${createRes.body.id}`)
       .set("Authorization", `Bearer ${staffToken}`);
 
-    expect(delRes.status).toBe(405);
+    expect(deleteRes.status).toBe(405);
+    await expect(
+      prisma.actionTaken.findUnique({ where: { id: createRes.body.id } })
+    ).resolves.not.toBeNull();
   });
 
-  // ---------------------------------------------------------------------------
-  // API-24: Action Status Lifecycle Enforcement
-  // ---------------------------------------------------------------------------
-  it("enforces legal status progressions and rejects modifications on cancelled actions (API-24, FR-05, FR-07, BR-07)", async () => {
-    // 1. Create a PENDING action
-    const actionRes = await request(app)
-      .post(`/api/tickets/${openTicket.id}/actions`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        actionDescription: "Triage initial user issue report.",
-        status: "PENDING",
-      });
-    expect(actionRes.status).toBe(201);
-    const actionId = actionRes.body.id;
-    let version = actionRes.body.version;
-
-    // 2. PENDING -> IN_PROGRESS is valid
-    const toProgress = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "IN_PROGRESS",
-      });
-    expect(toProgress.status).toBe(200);
-    expect(toProgress.body.status).toBe("IN_PROGRESS");
-    version = toProgress.body.version;
-
-    // 3. IN_PROGRESS -> COMPLETED requires result
-    const failComplete = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "COMPLETED",
-        result: "", // Missing result
-      });
-    expect(failComplete.status).toBe(400);
-
-    // 4. IN_PROGRESS -> COMPLETED with result is valid
-    const toComplete = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "COMPLETED",
-        result: "Work verified and tested.",
-      });
-    expect(toComplete.status).toBe(200);
-    version = toComplete.body.version;
-
-    // 5. COMPLETED -> IN_PROGRESS is valid (reopen work)
-    const toReopen = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "IN_PROGRESS",
-      });
-    expect(toReopen.status).toBe(200);
-    version = toReopen.body.version;
-
-    // 6. IN_PROGRESS -> CANCELLED requires cancellationReason
-    const failCancel = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "CANCELLED",
-      });
-    expect(failCancel.status).toBe(400);
-
-    const toCancel = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "CANCELLED",
-        cancellationReason: "Task superseded by network infrastructure overhaul.",
-      });
-    expect(toCancel.status).toBe(200);
-    version = toCancel.body.version;
-
-    // 7. CANCELLED is terminal: any further transition is rejected
-    const afterCancel = await request(app)
-      .patch(`/api/tickets/${openTicket.id}/actions/${actionId}`)
-      .set("Authorization", `Bearer ${staffToken}`)
-      .send({
-        expectedVersion: version,
-        status: "IN_PROGRESS",
-      });
-    expect(afterCancel.status).toBe(400);
-    expect(afterCancel.body.error.message).toMatch(/cancelled actions are terminal/i);
-  });
 });

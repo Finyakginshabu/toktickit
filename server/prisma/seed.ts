@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import bcrypt from "bcryptjs";
-import { Priority, Role, TicketStatus, ActionStatus } from "@prisma/client";
+import { Priority, Role, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../src/prisma.js";
 
 // Lab 4 Seed Data: Categories, Systems, Multi-Role Users, Tickets, Actions Taken, and Discussions
@@ -596,14 +596,11 @@ async function main() {
         data: {
           ticketId: tkt5.id,
           performedById: aliceStaff.id,
-          assigneeId: aliceStaff.id,
           actionDateTime: new Date("2026-09-17T11:30:00.000Z"),
           actionDescription: "Inspected paper path and cleared jammed sheet fragments from feed roller assembly.",
           result: "Printer test page fed cleanly across 10 duplex copies without jamming.",
-          status: ActionStatus.COMPLETED,
           followUpRequired: false,
           followUpNote: null,
-          followUpResolvedAt: null,
           attachmentNotes: "See test print output log.",
           version: 1,
         },
@@ -611,7 +608,7 @@ async function main() {
     }
   }
 
-  if (tkt4 && aliceStaff && bobStaff && charlieStaff) {
+  if (tkt4 && aliceStaff && bobStaff) {
     const existingTkt4Actions = await prisma.actionTaken.count({ where: { ticketId: tkt4.id } });
     if (existingTkt4Actions === 0) {
       await prisma.actionTaken.createMany({
@@ -619,28 +616,22 @@ async function main() {
           {
             ticketId: tkt4.id,
             performedById: aliceStaff.id,
-            assigneeId: bobStaff.id,
             actionDateTime: new Date("2026-09-17T10:05:00.000Z"),
             actionDescription: "Analyzed network route and reproduced connection drop at 10-minute idle threshold.",
             result: "Confirmed TCP keep-alive timeout issue on Gateway cluster 3.",
-            status: ActionStatus.COMPLETED,
             followUpRequired: false,
             followUpNote: null,
-            followUpResolvedAt: null,
             attachmentNotes: "Refer to vpn_drop_capture.pcap in lab archives.",
             version: 1,
           },
           {
             ticketId: tkt4.id,
             performedById: bobStaff.id,
-            assigneeId: charlieStaff.id,
             actionDateTime: new Date("2026-09-17T10:30:00.000Z"),
             actionDescription: "Deploying updated firewall session timeout profile on Gateway 3.",
             result: null,
-            status: ActionStatus.IN_PROGRESS,
             followUpRequired: false,
             followUpNote: null,
-            followUpResolvedAt: null,
             attachmentNotes: null,
             version: 1,
           },
@@ -656,14 +647,11 @@ async function main() {
         data: {
           ticketId: tkt2.id,
           performedById: aliceStaff.id,
-          assigneeId: aliceStaff.id,
           actionDateTime: new Date("2026-09-17T09:45:00.000Z"),
           actionDescription: "Re-calibrated transmission power on 4th floor access point zone B.",
           result: "Signal strength improved to -58 dBm at user workstation.",
-          status: ActionStatus.COMPLETED,
           followUpRequired: true,
           followUpNote: "Verify with user on Friday if authentication loop recurs in room 402.",
-          followUpResolvedAt: null,
           attachmentNotes: "AP-4B diagnostic report generated.",
           version: 1,
         },

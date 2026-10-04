@@ -77,16 +77,12 @@ describe("Lab 4 Migration & Schema Evolution Suite (server/tests/lab-04/migratio
       "id",
       "ticketId",
       "performedById",
-      "assigneeId",
       "actionDateTime",
       "actionDescription",
       "result",
-      "status",
       "followUpRequired",
       "followUpNote",
-      "followUpResolvedAt",
       "attachmentNotes",
-      "cancellationReason",
       "clientActionId",
       "version",
       "createdAt",
@@ -96,6 +92,10 @@ describe("Lab 4 Migration & Schema Evolution Suite (server/tests/lab-04/migratio
     for (const col of requiredColumns) {
       expect(colNames).toContain(col);
     }
+    expect(colNames).not.toContain("assigneeId");
+    expect(colNames).not.toContain("status");
+    expect(colNames).not.toContain("cancellationReason");
+    expect(colNames).not.toContain("followUpResolvedAt");
 
     // Verify composite and performance indexes
     const indexes: Array<{ indexname: string }> = await prisma.$queryRawUnsafe(`
@@ -107,9 +107,9 @@ describe("Lab 4 Migration & Schema Evolution Suite (server/tests/lab-04/migratio
 
     expect(idxNames).toContain("ActionTaken_clientActionId_key");
     expect(idxNames).toContain("ActionTaken_ticketId_actionDateTime_idx");
-    expect(idxNames).toContain("ActionTaken_ticketId_status_idx");
     expect(idxNames).toContain("ActionTaken_performedById_idx");
-    expect(idxNames).toContain("ActionTaken_assigneeId_idx");
+    expect(idxNames).not.toContain("ActionTaken_ticketId_status_idx");
+    expect(idxNames).not.toContain("ActionTaken_assigneeId_idx");
   });
 
   // ---------------------------------------------------------------------------
@@ -146,7 +146,6 @@ describe("Lab 4 Migration & Schema Evolution Suite (server/tests/lab-04/migratio
         ticketId: tempTicket.id,
         performedById: staffUser!.id,
         actionDescription: "Temporary diagnostic action to verify delete rejection",
-        status: "COMPLETED",
         result: "Verified trigger blocking",
       },
     });

@@ -40,13 +40,6 @@ enum TicketStatus {
 // ---------------------------------------------------------------------------
 // Lab 4 Enums
 // ---------------------------------------------------------------------------
-enum ActionStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
 // ---------------------------------------------------------------------------
 // Lab 3 Models
 // ---------------------------------------------------------------------------
@@ -67,7 +60,6 @@ model User {
   publicComments     PublicComment[]
   internalNotes      InternalNote[]
   performedActions   ActionTaken[]    @relation("ActionPerformer")
-  assignedActions    ActionTaken[]    @relation("ActionAssignee")
 
   @@index([email])
   @@index([role, isActive])
@@ -178,16 +170,12 @@ model ActionTaken {
   id                 Int          @id @default(autoincrement())
   ticketId           Int
   performedById      Int
-  assigneeId         Int?
   actionDateTime     DateTime     @default(now())
   actionDescription  String       @db.VarChar(2000)
   result             String?      @db.VarChar(2000)
-  status             ActionStatus @default(COMPLETED)
   followUpRequired   Boolean      @default(false)
   followUpNote       String?      @db.VarChar(2000)
-  followUpResolvedAt DateTime?
   attachmentNotes    String?      @db.VarChar(1000)
-  cancellationReason String?      @db.VarChar(2000)
   clientActionId     String?      @unique @db.Uuid
   version            Int          @default(1)
   createdAt          DateTime     @default(now())
@@ -195,10 +183,7 @@ model ActionTaken {
 
   ticket             Ticket       @relation(fields: [ticketId], references: [id], onDelete: Restrict)
   performedBy        User         @relation("ActionPerformer", fields: [performedById], references: [id])
-  assignee           User?        @relation("ActionAssignee", fields: [assigneeId], references: [id])
 
   @@index([ticketId, actionDateTime])
-  @@index([ticketId, status])
   @@index([performedById])
-  @@index([assigneeId])
 }
