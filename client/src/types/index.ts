@@ -62,8 +62,19 @@ export type TicketStatus =
   | "RESOLVED"
   | "CLOSED"
   | "REOPENED"
-  | "CANCELLED"
-  | "PENDING";
+  | "CANCELLED";
+
+export interface ResolutionGateErrorDetail {
+  code: "NO_ACTIONS_TAKEN" | "MISSING_RESOLUTION_SUMMARY";
+  field?: string;
+  message: string;
+}
+
+export interface ConflictErrorPayload {
+  version: number;
+  currentStatus: TicketStatus;
+  updatedAt: string;
+}
 
 export type AppTab =
   | "my-tickets"

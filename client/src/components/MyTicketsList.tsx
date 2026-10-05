@@ -116,7 +116,6 @@ export default function MyTicketsList() {
       OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
       WAITING_FOR_REQUESTER: "badge-status-waiting",
-      PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
       REOPENED: "badge-status-reopened",
@@ -239,10 +238,13 @@ export default function MyTicketsList() {
             >
               <option value="">All Statuses</option>
               <option value="NEW">NEW</option>
+              <option value="OPEN">OPEN</option>
               <option value="IN_PROGRESS">IN PROGRESS</option>
-              <option value="PENDING">PENDING</option>
+              <option value="WAITING_FOR_REQUESTER">WAITING FOR REQUESTER</option>
               <option value="RESOLVED">RESOLVED</option>
               <option value="CLOSED">CLOSED</option>
+              <option value="REOPENED">REOPENED</option>
+              <option value="CANCELLED">CANCELLED</option>
             </select>
           </div>
 

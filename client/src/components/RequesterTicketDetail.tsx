@@ -3,15 +3,19 @@ import { useRequester } from "../context/RequesterContext.js";
 import {
   getTicketDetail,
   indicateProblemResolved,
+  cancelTicket,
+  reopenTicket,
   getPublicComments,
   createPublicComment,
   Ticket,
   Priority,
   TicketStatus,
   PublicComment,
+  ConflictErrorPayload,
 } from "../api.js";
 import AttachmentSection from "./AttachmentSection.js";
 import ActionsTakenSection from "./ActionsTakenSection.js";
+import ConflictModal from "./ConflictModal.js";
 
 export default function RequesterTicketDetail() {
   const { requester, selectedTicketId, setSelectedTicketId, setActiveTab } = useRequester();
@@ -32,6 +36,11 @@ export default function RequesterTicketDetail() {
 
   const [resolveLoading, setResolveLoading] = useState<boolean>(false);
   const [resolveFeedback, setResolveFeedback] = useState<{ type: "success" | "danger"; message: string } | null>(null);
+
+  // Optimistic concurrency collision state & action loading
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [conflictData, setConflictData] = useState<ConflictErrorPayload | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
 
   const fetchComments = useCallback(async (ticketId: number) => {
     setCommentsLoading(true);
@@ -100,6 +109,68 @@ export default function RequesterTicketDetail() {
     }
   };
 
+  const handleCancelTicket = async () => {
+    if (!ticket) return;
+    setActionLoading(true);
+    setResolveFeedback(null);
+    try {
+      await cancelTicket(ticket.id, ticket.version ?? 1);
+      setResolveFeedback({
+        type: "success",
+        message: "Your ticket has been cancelled successfully.",
+      });
+      await fetchTicket();
+    } catch (err: any) {
+      if (err.code === "CONFLICT") {
+        setConflictData(err.currentTicket);
+        setShowConflictModal(true);
+      } else {
+        setResolveFeedback({
+          type: "danger",
+          message: err.message || "Failed to cancel ticket.",
+        });
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReopenTicket = async () => {
+    if (!ticket) return;
+    setActionLoading(true);
+    setResolveFeedback(null);
+    try {
+      await reopenTicket(ticket.id, ticket.version ?? 1);
+      setResolveFeedback({
+        type: "success",
+        message: "Your ticket has been reopened.",
+      });
+      await fetchTicket();
+    } catch (err: any) {
+      if (err.code === "CONFLICT") {
+        setConflictData(err.currentTicket);
+        setShowConflictModal(true);
+      } else {
+        setResolveFeedback({
+          type: "danger",
+          message: err.message || "Failed to reopen ticket.",
+        });
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConflictReload = async () => {
+    setShowConflictModal(false);
+    setConflictData(null);
+    await fetchTicket();
+  };
+
+  const handleConflictKeepInput = () => {
+    setShowConflictModal(false);
+  };
+
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticket || !commentInput.trim()) return;
@@ -140,7 +211,6 @@ export default function RequesterTicketDetail() {
       OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
       WAITING_FOR_REQUESTER: "badge-status-waiting",
-      PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
       REOPENED: "badge-status-reopened",
@@ -252,13 +322,13 @@ export default function RequesterTicketDetail() {
                 <span className="material-symbols-outlined fs-6">check_circle</span>
                 Problem Appears Resolved
               </span>
-            ) : ticket.currentStatus !== "RESOLVED" && ticket.currentStatus !== "CLOSED" ? (
+            ) : ticket.currentStatus !== "RESOLVED" && ticket.currentStatus !== "CLOSED" && ticket.currentStatus !== "CANCELLED" ? (
               <button
                 type="button"
                 data-testid="indicate-resolved-btn"
                 className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
                 onClick={handleIndicateResolved}
-                disabled={resolveLoading}
+                disabled={resolveLoading || actionLoading}
                 title="Let IT staff know that this issue appears fixed"
               >
                 {resolveLoading ? (
@@ -269,6 +339,42 @@ export default function RequesterTicketDetail() {
                 <span>Problem Appears Resolved</span>
               </button>
             ) : null}
+
+            {ticket.currentStatus === "NEW" && (
+              <button
+                type="button"
+                data-testid="cancel-ticket-btn"
+                className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+                onClick={handleCancelTicket}
+                disabled={actionLoading || resolveLoading}
+                title="Withdraw your ticket before work begins"
+              >
+                {actionLoading ? (
+                  <span className="spinner-border spinner-border-sm" role="status" />
+                ) : (
+                  <span className="material-symbols-outlined fs-6">cancel</span>
+                )}
+                <span>Cancel Ticket</span>
+              </button>
+            )}
+
+            {ticket.currentStatus === "RESOLVED" && (
+              <button
+                type="button"
+                data-testid="reopen-ticket-btn"
+                className="btn btn-sm btn-outline-warning d-flex align-items-center gap-1 text-dark"
+                onClick={handleReopenTicket}
+                disabled={actionLoading || resolveLoading}
+                title="Reopen this ticket if the issue recurred or resolution was unsatisfactory"
+              >
+                {actionLoading ? (
+                  <span className="spinner-border spinner-border-sm" role="status" />
+                ) : (
+                  <span className="material-symbols-outlined fs-6">replay</span>
+                )}
+                <span>Reopen Ticket</span>
+              </button>
+            )}
 
             <div>
               <small className="text-muted d-block text-end mb-1">Current Status</small>
@@ -543,6 +649,13 @@ export default function RequesterTicketDetail() {
         </form>
         </div>
       </div>
+
+      <ConflictModal
+        isOpen={showConflictModal}
+        conflictData={conflictData}
+        onReload={handleConflictReload}
+        onKeepInput={handleConflictKeepInput}
+      />
     </div>
   );
 }
