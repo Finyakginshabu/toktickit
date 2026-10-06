@@ -839,7 +839,7 @@ app.patch(
         }
 
         // Resolution Gate check (BR-09) when expectedVersion is present or gate required
-        if (expectedVersion !== undefined && isResolutionGateRequired(ticket.currentStatus, upperStatus as TicketStatus)) {
+        if (isResolutionGateRequired(ticket.currentStatus, upperStatus as TicketStatus)) {
           const actionsCount = await tx.actionTaken.count({
             where: { ticketId: id },
           });
