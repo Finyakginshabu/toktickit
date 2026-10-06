@@ -1,6 +1,7 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { execSync } from "child_process";
 import path from "path";
+import fs from "fs";
 import { getPrisma } from "../../src/prisma.js";
 
 describe("Lab 4 Seed Idempotency & Coverage Suite (server/tests/lab-04/seed-idempotency.test.ts - MIG-02)", () => {
@@ -96,7 +97,9 @@ describe("Lab 4 Seed Idempotency & Coverage Suite (server/tests/lab-04/seed-idem
     });
 
     // 2. Re-run seed script
-    const serverDir = path.resolve(process.cwd());
+    const serverDir = fs.existsSync(path.resolve(process.cwd(), "server"))
+      ? path.resolve(process.cwd(), "server")
+      : path.resolve(process.cwd());
     execSync("npm run prisma:seed", {
       cwd: serverDir,
       stdio: "pipe",

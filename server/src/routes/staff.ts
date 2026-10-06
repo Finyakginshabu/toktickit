@@ -2,6 +2,8 @@ import { Router, Request, Response } from "express";
 import { getPrisma } from "../prisma.js";
 import { authenticateToken, requirePasswordChangeResolved, requireRole } from "../middleware/auth.js";
 import { Priority, TicketStatus } from "@prisma/client";
+import { isValidStatusTransition, isResolutionGateRequired } from "../utils/statusTransitions.js";
+import { evaluateResolutionGate } from "../utils/resolutionGate.js";
 
 export const staffRouter = Router();
 
@@ -185,4 +187,161 @@ staffRouter.get(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Authoritative Ticket Status Workflow & Resolution Gate
+// PATCH /api/staff/tickets/:ticketId/status (enforces BR-08, BR-09, BR-11 in atomic transaction)
+// Restricted strictly to IT_STAFF and ADMINISTRATOR
+// ---------------------------------------------------------------------------
+staffRouter.patch(
+  "/tickets/:ticketId/status",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  requireRole(["IT_STAFF", "ADMINISTRATOR"]),
+  async (req: Request, res: Response) => {
+    try {
+      const ticketId = parseInt(req.params.ticketId, 10);
+      if (isNaN(ticketId)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const { status, resolutionSummary, expectedVersion } = req.body;
+      const upperStatus = typeof status === "string" ? status.toUpperCase() : "";
+      if (!Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
+        return res.status(400).json({
+          error: {
+            code: "INVALID_TRANSITION",
+            message: "Invalid ticket status.",
+          },
+        });
+      }
+
+      const prisma = getPrisma();
+      const result = await prisma.$transaction(async (tx) => {
+        const ticket = await tx.ticket.findUnique({
+          where: { id: ticketId },
+        });
+
+        if (!ticket) {
+          return {
+            errorStatus: 404,
+            errorBody: {
+              error: {
+                code: "NOT_FOUND",
+                message: "Ticket not found.",
+              },
+            },
+          };
+        }
+
+        // Optimistic Concurrency Check (BR-11)
+        if (expectedVersion !== undefined) {
+          const parsedExpected = parseInt(expectedVersion, 10);
+          if (isNaN(parsedExpected) || ticket.version !== parsedExpected) {
+            return {
+              errorStatus: 409,
+              errorBody: {
+                error: {
+                  code: "CONFLICT",
+                  message:
+                    "The ticket was modified by another user. Please reload the ticket to view the latest changes.",
+                  currentTicket: {
+                    version: ticket.version,
+                    currentStatus: ticket.currentStatus,
+                    updatedAt: ticket.updatedAt,
+                  },
+                },
+              },
+            };
+          }
+        }
+
+        // Status transition matrix check (BR-08)
+        if (!isValidStatusTransition(ticket.currentStatus, upperStatus as TicketStatus)) {
+          return {
+            errorStatus: 400,
+            errorBody: {
+              error: {
+                code: "INVALID_TRANSITION",
+                message: `Invalid status transition from ${ticket.currentStatus} to ${upperStatus}.`,
+              },
+            },
+          };
+        }
+
+        // Resolution Gate Check (BR-09)
+        if (isResolutionGateRequired(ticket.currentStatus, upperStatus as TicketStatus)) {
+          const actionsCount = await tx.actionTaken.count({
+            where: { ticketId },
+          });
+
+          const gateEvaluation = evaluateResolutionGate({
+            actionsCount,
+            resolutionSummary,
+            currentStatus: ticket.currentStatus,
+          });
+
+          if (!gateEvaluation.passed) {
+            return {
+              errorStatus: 400,
+              errorBody: {
+                error: {
+                  code: "RESOLUTION_GATE_BLOCKED",
+                  message: "Ticket does not satisfy resolution gate requirements.",
+                  details: gateEvaluation.details,
+                },
+              },
+            };
+          }
+        }
+
+        const updateData: any = {
+          currentStatus: upperStatus as TicketStatus,
+          version: { increment: 1 },
+        };
+
+        if (upperStatus === TicketStatus.RESOLVED) {
+          updateData.resolvedAt = new Date();
+          updateData.resolutionSummary =
+            typeof resolutionSummary === "string" ? resolutionSummary.trim() : null;
+        }
+
+        const updated = await tx.ticket.update({
+          where: { id: ticketId },
+          data: updateData,
+          select: {
+            id: true,
+            ticketNumber: true,
+            currentStatus: true,
+            resolutionSummary: true,
+            resolvedAt: true,
+            version: true,
+            updatedAt: true,
+          },
+        });
+
+        return { data: updated };
+      });
+
+      if (result.errorStatus && result.errorBody) {
+        return res.status(result.errorStatus).json(result.errorBody);
+      }
+
+      return res.status(200).json(result.data);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to update ticket status.",
+        },
+      });
+    }
+  }
+);
+
 

@@ -234,8 +234,8 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
   * The "Resolve Ticket" button remains enabled and clickable.
   * Clicking it opens `ResolutionGateModal.tsx` prompting for the required **Resolution Summary**.
   * The modal evaluates the Resolution Gate criteria (`BR-09`) against the ticket's current state and displays a dynamic checklist:
-    * Passed item: `✓ [Requirement Satisfied]` in forest green.
-    * Failed item: `✕ [Requirement Unmet]` in red/amber with relevant action IDs when available (e.g. a missing Action Taken).
+    * Passed item: `[Requirement Satisfied]` in forest green.
+    * Failed item: `[Requirement Unmet]` in red/amber with relevant action IDs when available (e.g. a missing Action Taken).
   * The "Confirm Resolution" submit button remains disabled with a tooltip until all criteria in the checklist are green.
 
 ### 4.7. Optimistic Concurrency Conflict Feedback
