@@ -11,6 +11,7 @@ import { authRouter } from "./routes/auth.js";
 import { staffRouter } from "./routes/staff.js";
 import { adminRouter } from "./routes/admin.js";
 import { actionsRouter } from "./routes/actions.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 import {
   authenticateToken,
   optionalAuthenticateToken,
@@ -33,6 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/dashboard", dashboardRouter);
 app.use("/api/tickets", actionsRouter);
 
 // ---------------------------------------------------------------------------
@@ -430,11 +432,14 @@ const handleMyTickets = async (req: Request, res: Response) => {
       }
     }
 
-    // Status filter
-    if (status && typeof status === "string") {
-      const upperStatus = status.toUpperCase();
-      if (Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
-        where.currentStatus = upperStatus as TicketStatus;
+    // Status filter (Supports comma-separated enum values for multi-status drill-down per BR-15)
+    if (status && typeof status === "string" && status.trim().length > 0) {
+      const statusTokens = status.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+      const validStatuses = statusTokens.filter((s) => Object.values(TicketStatus).includes(s as TicketStatus)) as TicketStatus[];
+      if (validStatuses.length === 1) {
+        where.currentStatus = validStatuses[0];
+      } else if (validStatuses.length > 1) {
+        where.currentStatus = { in: validStatuses };
       }
     }
 

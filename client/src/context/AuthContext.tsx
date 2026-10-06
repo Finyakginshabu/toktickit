@@ -5,18 +5,22 @@ import { User, AppTab } from "../types/index.js";
 // URL ↔ AppTab mapping (matches docs/lab-03/ui-spec.md §5 Standard Page URLs)
 // ---------------------------------------------------------------------------
 const TAB_TO_PATH: Record<AppTab, string> = {
-  "my-tickets":     "/my-tickets",
-  "create-ticket":  "/create-ticket",
-  "ticket-detail":  "/tickets",       // /tickets/:id — id appended separately
-  "ticket-queue":   "/staff/queue",
+  "dashboard":       "/dashboard",
+  "my-tickets":      "/my-tickets",
+  "create-ticket":   "/create-ticket",
+  "ticket-detail":   "/tickets",       // /tickets/:id — id appended separately
+  "ticket-queue":    "/staff/queue",
   "user-management": "/admin/users",
 };
 
 const AUTH_PATHS: Record<string, AppTab> = {
-  "/my-tickets":     "my-tickets",
-  "/create-ticket":  "create-ticket",
-  "/staff/queue":    "ticket-queue",
-  "/admin/users":    "user-management",
+  "/dashboard":       "dashboard",
+  "/staff/dashboard": "dashboard",
+  "/admin/dashboard": "dashboard",
+  "/my-tickets":      "my-tickets",
+  "/create-ticket":   "create-ticket",
+  "/staff/queue":     "ticket-queue",
+  "/admin/users":     "user-management",
 };
 
 /** Derive AppTab from the current browser path. Returns null for /login, /change-password, and unknown paths. */
@@ -33,7 +37,11 @@ function syncUrl(tab: AppTab, ticketId?: number | null, userRole?: string) {
   if (isTest) return; // don't touch window.location in tests
 
   let path = TAB_TO_PATH[tab];
-  if (tab === "ticket-detail" && ticketId) {
+  if (tab === "dashboard") {
+    if (userRole === "IT_STAFF") path = "/staff/dashboard";
+    else if (userRole === "ADMINISTRATOR") path = "/admin/dashboard";
+    else path = "/dashboard";
+  } else if (tab === "ticket-detail" && ticketId) {
     path = `/tickets/${ticketId}`;
   }
 
@@ -204,9 +212,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       setSelectedTicketIdRaw(null);
-      const defaultTab = getDefaultTab(data.user.role);
-      setActiveTabRaw(defaultTab);
-      syncUrl(defaultTab);
+      setActiveTabRaw("dashboard");
+      syncUrl("dashboard", undefined, data.user.role);
       return data.user;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to sign in";

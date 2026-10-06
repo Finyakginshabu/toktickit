@@ -81,7 +81,8 @@ export type AppTab =
   | "ticket-queue"
   | "create-ticket"
   | "ticket-detail"
-  | "user-management";
+  | "user-management"
+  | "dashboard";
 
 export interface GetTicketsParams {
   requesterId: number;
@@ -98,9 +99,9 @@ export interface GetTicketsParams {
 export interface GetStaffTicketsParams {
   search?: string;
   categoryId?: number;
-  status?: TicketStatus;
-  itPriority?: Priority;
-  ownerId?: number | "unassigned" | "";
+  status?: TicketStatus | string;
+  itPriority?: Priority | string;
+  ownerId?: number | "unassigned" | "me" | "";
   page?: number;
   pageSize?: number;
   sortBy?: "createdAt" | "itPriority" | "currentStatus" | "ticketNumber";
@@ -224,3 +225,94 @@ export interface UpdateActionTakenPayload {
   attachmentNotes?: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 — Dashboard Types (FR-14, FR-15, FR-16, BR-12, BR-13, BR-14, BR-15)
+// ---------------------------------------------------------------------------
+
+export interface RequesterDashboardMetrics {
+  myOpenTickets: number;
+  inProgressTickets: number;
+  resolvedTickets: number;
+  closedTickets: number;
+  waitingForRequesterTickets: number;
+}
+
+export interface RequesterDrillDownUrls {
+  myOpenTickets: string;
+  inProgressTickets: string;
+  resolvedTickets: string;
+  closedTickets: string;
+  waitingForRequesterTickets: string;
+}
+
+export interface RecentTicketSummary {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatus;
+  requestedPriority?: Priority;
+  itPriority?: Priority;
+  requesterName?: string;
+  ticketOwnerName?: string | null;
+  updatedAt: string;
+  categoryName: string;
+}
+
+export interface RequesterDashboardResponse {
+  metrics: RequesterDashboardMetrics;
+  drillDownUrls: RequesterDrillDownUrls;
+  recentTickets: RecentTicketSummary[];
+}
+
+export interface StaffDashboardMetrics {
+  newTickets: number;
+  openTickets: number;
+  inProgressTickets: number;
+  waitingForRequesterTickets: number;
+  myAssignedTickets: number;
+  unassignedTickets: number;
+  highUrgentTickets: number;
+  myOpenActionsCount: number;
+}
+
+export interface StaffMetricDeltas {
+  newTickets: number;
+  openTickets: number;
+  inProgressTickets: number;
+  waitingForRequesterTickets: number;
+  myAssignedTickets: number;
+}
+
+export interface StaffDrillDownUrls {
+  newTickets: string;
+  openTickets: string;
+  inProgressTickets: string;
+  waitingForRequesterTickets: string;
+  myAssignedTickets: string;
+  unassignedTickets: string;
+  highUrgentTickets: string;
+}
+
+export interface StaffDashboardResponse {
+  metrics: StaffDashboardMetrics;
+  deltas: StaffMetricDeltas;
+  drillDownUrls: StaffDrillDownUrls;
+  recentTickets: RecentTicketSummary[];
+}
+
+export interface UserMetrics {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  usersByRole: {
+    REQUESTER: number;
+    IT_STAFF: number;
+    ADMINISTRATOR: number;
+  };
+}
+
+export interface AdminDashboardResponse extends StaffDashboardResponse {
+  ticketMetrics: StaffDashboardMetrics;
+  userMetrics: UserMetrics;
+  drillDownUrls: StaffDrillDownUrls & { manageUsers: string };
+}

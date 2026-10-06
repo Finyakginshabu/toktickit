@@ -12,6 +12,9 @@ import {
   ActionTaken,
   CreateActionTakenPayload,
   UpdateActionTakenPayload,
+  RequesterDashboardResponse,
+  StaffDashboardResponse,
+  AdminDashboardResponse,
 } from "./types/index.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -781,13 +784,60 @@ export async function updateTicketAction(
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 — Dashboard API Functions (FR-14, FR-15, FR-16, BR-12, BR-13, BR-14)
+// ---------------------------------------------------------------------------
 
+export async function getRequesterDashboard(): Promise<RequesterDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/requester`, {
+    headers: getAuthHeaders(),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
 
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to load requester dashboard (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    throw error;
+  }
 
+  return res.json();
+}
 
+export async function getStaffDashboard(): Promise<StaffDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/staff`, {
+    headers: getAuthHeaders(),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
 
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to load staff dashboard (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    throw error;
+  }
 
+  return res.json();
+}
 
+export async function getAdminDashboard(): Promise<AdminDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/admin`, {
+    headers: getAuthHeaders(),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
 
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to load admin dashboard (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    throw error;
+  }
 
-
+  return res.json();
+}

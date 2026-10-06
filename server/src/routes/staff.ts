@@ -51,29 +51,64 @@ staffRouter.get(
         }
       }
 
-      // 3. Status Filter (Valid TicketStatus enum values)
+      // 3. Status Filter — supports comma-separated values (OR within status, BR-15)
       if (status && typeof status === "string") {
-        const upperStatus = status.toUpperCase();
-        if (Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
-          where.currentStatus = upperStatus as TicketStatus;
+        const rawStatuses = status.split(",").map((s) => s.trim().toUpperCase());
+        const validStatuses = rawStatuses.filter((s) =>
+          Object.values(TicketStatus).includes(s as TicketStatus)
+        );
+        const invalidStatuses = rawStatuses.filter(
+          (s) => !Object.values(TicketStatus).includes(s as TicketStatus)
+        );
+        if (invalidStatuses.length > 0) {
+          return res.status(400).json({
+            error: {
+              code: "VALIDATION_ERROR",
+              message: `Invalid status value(s): ${invalidStatuses.join(", ")}. Valid values are: ${Object.values(TicketStatus).join(", ")}.`,
+            },
+          });
+        }
+        if (validStatuses.length === 1) {
+          where.currentStatus = validStatuses[0];
+        } else if (validStatuses.length > 1) {
+          where.currentStatus = { in: validStatuses };
         }
       }
 
-      // 4. IT Priority Filter (Valid Priority enum values)
+      // 4. IT Priority Filter — supports comma-separated values (OR within priority, BR-15)
       if (itPriority && typeof itPriority === "string") {
-        const upperPriority = itPriority.toUpperCase();
-        if (Object.values(Priority).includes(upperPriority as Priority)) {
-          where.itPriority = upperPriority as Priority;
+        const rawPriorities = itPriority.split(",").map((p) => p.trim().toUpperCase());
+        const validPriorities = rawPriorities.filter((p) =>
+          Object.values(Priority).includes(p as Priority)
+        );
+        const invalidPriorities = rawPriorities.filter(
+          (p) => !Object.values(Priority).includes(p as Priority)
+        );
+        if (invalidPriorities.length > 0) {
+          return res.status(400).json({
+            error: {
+              code: "VALIDATION_ERROR",
+              message: `Invalid itPriority value(s): ${invalidPriorities.join(", ")}. Valid values are: ${Object.values(Priority).join(", ")}.`,
+            },
+          });
+        }
+        if (validPriorities.length === 1) {
+          where.itPriority = validPriorities[0];
+        } else if (validPriorities.length > 1) {
+          where.itPriority = { in: validPriorities };
         }
       }
 
       // 5. Ownership Filter:
       // "0" or "unassigned" -> unassigned tickets (ticketOwnerId is null)
+      // "me" -> tickets assigned to authenticated caller (BR-15)
       // Specific integer > 0 -> assigned to that user
       if (ownerId !== undefined && ownerId !== null && ownerId !== "") {
         const ownerStr = String(ownerId).toLowerCase().trim();
         if (ownerStr === "0" || ownerStr === "unassigned") {
           where.ticketOwnerId = null;
+        } else if (ownerStr === "me") {
+          where.ticketOwnerId = (req as any).user.id;
         } else {
           const parsedOwnerId = parseInt(ownerStr, 10);
           if (!isNaN(parsedOwnerId) && parsedOwnerId > 0) {

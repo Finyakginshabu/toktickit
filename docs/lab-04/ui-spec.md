@@ -105,7 +105,6 @@ TokTickIT preserves and hardens the **Zen Green Design System** established in L
     * **Requester**: *Dashboard* (`/dashboard`), *My Tickets* (`/my-tickets`), *Create Ticket* (`/create-ticket`).
     * **IT Staff**: *Dashboard* (`/staff/dashboard`), *Ticket Queue* (`/staff/queue`).
     * **Administrator**: *Dashboard* (`/admin/dashboard`), *Ticket Queue* (`/staff/queue`), *User Management* (`/admin/users`).
-  * **Active Tab Style**: High-contrast white border bottom (`border-bottom: 3px solid #FFFFFF`), bold font.
   * **User Profile & Session Controls**:
     * Displays authenticated user's name and role badge.
     * Logout button: Outlined button with sign-out icon. Clicking immediately ends session and redirects to Login.

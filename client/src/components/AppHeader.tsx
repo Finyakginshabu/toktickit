@@ -48,6 +48,14 @@ export default function AppHeader() {
             <>
               <button
                 type="button"
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "dashboard" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("dashboard")}
+              >
+                <span className="material-symbols-outlined fs-6">dashboard</span>
+                Dashboard
+              </button>
+              <button
+                type="button"
                 className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "my-tickets" ? "zen-nav-link active" : "zen-nav-link"}`}
                 onClick={() => handleNavClick("my-tickets")}
               >
@@ -69,6 +77,14 @@ export default function AppHeader() {
             <>
               <button
                 type="button"
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "dashboard" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("dashboard")}
+              >
+                <span className="material-symbols-outlined fs-6">dashboard</span>
+                Dashboard
+              </button>
+              <button
+                type="button"
                 className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
                 onClick={() => handleNavClick("ticket-queue")}
               >
@@ -80,6 +96,14 @@ export default function AppHeader() {
 
           {authUser?.role === "ADMINISTRATOR" && (
             <>
+              <button
+                type="button"
+                className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "dashboard" ? "zen-nav-link active" : "zen-nav-link"}`}
+                onClick={() => handleNavClick("dashboard")}
+              >
+                <span className="material-symbols-outlined fs-6">dashboard</span>
+                Dashboard
+              </button>
               <button
                 type="button"
                 className={`btn btn-sm d-flex align-items-center gap-1 ${activeTab === "ticket-queue" ? "zen-nav-link active" : "zen-nav-link"}`}
@@ -148,6 +172,14 @@ export default function AppHeader() {
               <>
                 <button
                   type="button"
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "dashboard" ? "active" : ""}`}
+                  onClick={() => handleNavClick("dashboard")}
+                >
+                  <span className="material-symbols-outlined">dashboard</span>
+                  Dashboard
+                </button>
+                <button
+                  type="button"
                   className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "my-tickets" ? "active" : ""}`}
                   onClick={() => handleNavClick("my-tickets")}
                 >
@@ -169,6 +201,14 @@ export default function AppHeader() {
               <>
                 <button
                   type="button"
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "dashboard" ? "active" : ""}`}
+                  onClick={() => handleNavClick("dashboard")}
+                >
+                  <span className="material-symbols-outlined">dashboard</span>
+                  Dashboard
+                </button>
+                <button
+                  type="button"
                   className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "ticket-queue" ? "active" : ""}`}
                   onClick={() => handleNavClick("ticket-queue")}
                 >
@@ -180,6 +220,14 @@ export default function AppHeader() {
 
             {authUser?.role === "ADMINISTRATOR" && (
               <>
+                <button
+                  type="button"
+                  className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "dashboard" ? "active" : ""}`}
+                  onClick={() => handleNavClick("dashboard")}
+                >
+                  <span className="material-symbols-outlined">dashboard</span>
+                  Dashboard
+                </button>
                 <button
                   type="button"
                   className={`zen-mobile-nav-link d-flex align-items-center gap-2 ${activeTab === "ticket-queue" ? "active" : ""}`}
