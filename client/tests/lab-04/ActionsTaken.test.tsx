@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import ActionsTakenSection from "../../src/components/ActionsTakenSection.js";
 import { AuthProvider } from "../../src/context/AuthContext.js";
@@ -56,7 +57,7 @@ const mockActions: ActionTaken[] = [
   },
 ];
 
-function renderActionsSection(props: {
+async function renderActionsSection(props: {
   ticketId?: number;
   ticketStatus?: "NEW" | "OPEN" | "IN_PROGRESS" | "WAITING_FOR_REQUESTER" | "RESOLVED" | "CLOSED" | "CANCELLED" | "REOPENED";
   isRequester?: boolean;
@@ -64,15 +65,17 @@ function renderActionsSection(props: {
   localStorage.setItem("toktickit_auth_token", "mock-token");
   localStorage.setItem("toktickit_auth_user", JSON.stringify(mockStaffUser));
 
-  return render(
-    <AuthProvider>
-      <ActionsTakenSection
-        ticketId={props.ticketId ?? 12}
-        ticketStatus={props.ticketStatus ?? "OPEN"}
-        isRequester={props.isRequester ?? false}
-      />
-    </AuthProvider>
-  );
+  await act(async () => {
+    render(
+      <AuthProvider>
+        <ActionsTakenSection
+          ticketId={props.ticketId ?? 12}
+          ticketStatus={props.ticketStatus ?? "OPEN"}
+          isRequester={props.isRequester ?? false}
+        />
+      </AuthProvider>
+    );
+  });
 }
 
 describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
@@ -88,7 +91,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("renders populated table with all spec columns (UI-01, AC-01)", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByTestId("action-row-101")).toBeInTheDocument();
@@ -129,11 +132,20 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
       });
       vi.spyOn(api, "getTicketActions").mockReturnValue(promise);
 
-      renderActionsSection();
+      // Do NOT await here — we need to observe the loading state before resolution
+      localStorage.setItem("toktickit_auth_token", "mock-token");
+      localStorage.setItem("toktickit_auth_user", JSON.stringify(mockStaffUser));
+      render(
+        <AuthProvider>
+          <ActionsTakenSection ticketId={12} ticketStatus="OPEN" isRequester={false} />
+        </AuthProvider>
+      );
 
       expect(screen.getByTestId("actions-loading-skeleton")).toBeInTheDocument();
 
-      resolvePromise!(mockActions);
+      await act(async () => {
+        resolvePromise!(mockActions);
+      });
 
       await waitFor(() => {
         expect(screen.queryByTestId("actions-loading-skeleton")).not.toBeInTheDocument();
@@ -144,7 +156,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("renders empty state when ticket has zero actions taken (UI-01)", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByTestId("actions-empty-state")).toBeInTheDocument();
@@ -162,7 +174,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
         .mockRejectedValueOnce(new Error("Network connection dropped"))
         .mockResolvedValueOnce(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByText(/Network connection dropped/i)).toBeInTheDocument();
@@ -181,7 +193,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("opens Add Action modal with auto-populated read-only performer (UI-01, AC-01)", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /add action taken/i })).toBeInTheDocument();
@@ -206,7 +218,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("opens the edit modal from a row without rendering action controls", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByTestId("action-row-101")).toBeInTheDocument();
@@ -224,7 +236,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("opens the edit modal when a mobile action card is clicked", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByTestId("action-card-101")).toBeInTheDocument();
@@ -243,7 +255,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("checkbox dynamically toggles required follow-up note input", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /add action taken/i })).toBeInTheDocument();
@@ -267,7 +279,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("shows the follow-up note without a status flag or resolved state", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByTestId("action-row-102")).toBeInTheDocument();
@@ -287,7 +299,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("omits write controls and row editing while hiding staff email addresses", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection({ isRequester: true });
+      await renderActionsSection({ isRequester: true });
 
       await waitFor(() => {
         expect(screen.getByTestId("action-row-101")).toBeInTheDocument();
@@ -314,7 +326,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
       vi.spyOn(api, "createTicketAction").mockRejectedValue(new Error("Database connection busy"));
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /add action taken/i })).toBeInTheDocument();
@@ -354,7 +366,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
       });
       vi.spyOn(api, "createTicketAction").mockReturnValue(pendingPromise);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /add action taken/i })).toBeInTheDocument();
@@ -404,7 +416,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("disables adding and row editing when ticket is CLOSED", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection({ ticketStatus: "CLOSED" });
+      await renderActionsSection({ ticketStatus: "CLOSED" });
 
       await waitFor(() => {
         expect(screen.getByTestId("action-row-101")).toBeInTheDocument();
@@ -426,7 +438,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("dismisses modal on Escape key press", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByRole("button", { name: /add action taken/i })).toBeInTheDocument();
@@ -445,7 +457,7 @@ describe("Lab 4 Actions Taken UI Component Suite (Issue 15)", () => {
     it("shows the follow-up note without a flag control", async () => {
       vi.spyOn(api, "getTicketActions").mockResolvedValue(mockActions);
 
-      renderActionsSection();
+      await renderActionsSection();
 
       await waitFor(() => {
         expect(screen.getByTestId("action-row-102")).toBeInTheDocument();

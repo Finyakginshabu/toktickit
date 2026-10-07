@@ -12,9 +12,12 @@ test.describe("Lab 3 Administrator User Management E2E Suite (E2E-03)", () => {
     await page.fill("#login-password", "AdminPass123!");
     await page.click('button[type="submit"]');
 
-    // Confirm landed on User Management
+    // Confirm authentication and navigate to User Management
     await expect(page.locator("header")).toContainText("System Administrator");
     await expect(page.locator("header")).toContainText("Administrator");
+    const userMgmtNav = page.locator('header nav button:has-text("User Management")').first();
+    await userMgmtNav.waitFor({ state: "visible", timeout: 8000 });
+    await userMgmtNav.click();
     await expect(page.locator("h1")).toContainText("User Management");
   });
 

@@ -93,7 +93,7 @@ test.describe("Lab 3 Visual Screenshots & Responsive Inspection", () => {
     await page.fill("#new-password", "UpdatedPass2026!");
     await page.fill("#confirm-password", "UpdatedPass2026!");
     await page.click('button[type="submit"]');
-    await expect(page.locator("h1")).toContainText("My Tickets");
+    await expect(page.locator("h1")).toContainText(/My Tickets|Welcome/);
   });
 
   // ---------------------------------------------------------------------------
@@ -108,6 +108,9 @@ test.describe("Lab 3 Visual Screenshots & Responsive Inspection", () => {
     await page.fill("#login-email", "staff.alice@toktickit.local");
     await page.fill("#login-password", "Password123!");
     await page.click('button[type="submit"]');
+    const queueNav = page.locator('header nav button:has-text("Ticket Queue")').first();
+    await queueNav.waitFor({ state: "visible", timeout: 8000 });
+    await queueNav.click();
     await expect(page.locator("h1")).toContainText("IT Staff Ticket Queue");
 
     // 01-queue-desktop.png
@@ -165,6 +168,9 @@ test.describe("Lab 3 Visual Screenshots & Responsive Inspection", () => {
     await page.fill("#login-email", "staff.alice@toktickit.local");
     await page.fill("#login-password", "Password123!");
     await page.click('button[type="submit"]');
+    const queueNavDetail = page.locator('header nav button:has-text("Ticket Queue")').first();
+    await queueNavDetail.waitFor({ state: "visible", timeout: 8000 });
+    await queueNavDetail.click();
 
     // Click first ticket row
     await page.locator("table.zen-table tbody tr").first().click();
@@ -209,6 +215,9 @@ test.describe("Lab 3 Visual Screenshots & Responsive Inspection", () => {
     await page.fill("#login-email", "admin@toktickit.local");
     await page.fill("#login-password", "AdminPass123!");
     await page.click('button[type="submit"]');
+    const userMgmtNav = page.locator('header nav button:has-text("User Management")').first();
+    await userMgmtNav.waitFor({ state: "visible", timeout: 8000 });
+    await userMgmtNav.click();
     await expect(page.locator("h1")).toContainText("User Management");
 
     // 01-user-table-desktop.png

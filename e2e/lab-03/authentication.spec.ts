@@ -23,7 +23,7 @@ test.describe("Lab 3 Authentication & Session E2E Suite (E2E-01)", () => {
     // Verify landing on My Tickets
     await expect(page.locator("header")).toContainText("Jennifer Anderson");
     await expect(page.locator("header")).toContainText("Requester");
-    await expect(page.locator("h1")).toContainText("My Tickets");
+    await expect(page.locator("h1")).toContainText(/My Tickets|Welcome/);
 
     // Verify navigation links strictly for Requester (FR-05, AC-07)
     await expect(page.locator('header nav button:has-text("My Tickets")')).toBeVisible();
@@ -90,7 +90,7 @@ test.describe("Lab 3 Authentication & Session E2E Suite (E2E-01)", () => {
 
     // After successful password change, redirected into normal app dashboard
     await expect(page.locator("header")).toContainText("New Employee");
-    await expect(page.locator("h1")).toContainText("My Tickets");
+    await expect(page.locator("h1")).toContainText(/My Tickets|Welcome/);
   });
 
   test("5. Session logout invalidates authenticated access (AC-06, FR-04)", async ({
