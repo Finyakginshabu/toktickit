@@ -196,6 +196,16 @@ describe("Lab 3 Staff Ticket Operations API Suite (server/tests/lab-03/staff-tic
 
   // Further status progression to RESOLVED with resolutionSummary
   it("advances status from IN_PROGRESS to RESOLVED with resolutionSummary", async () => {
+    await prisma.actionTaken.create({
+      data: {
+        ticketId: testTicketId,
+        performedById: aliceUserId,
+        actionDateTime: new Date(),
+        actionDescription: "Replaced hardware adapter",
+        version: 1,
+      },
+    });
+    
     const res = await request(app)
       .patch(`/api/tickets/${testTicketId}/status`)
       .set("Authorization", `Bearer ${staffAliceToken}`)

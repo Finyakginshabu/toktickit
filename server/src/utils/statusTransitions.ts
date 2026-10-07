@@ -122,13 +122,15 @@ export function isRoleAuthorizedForTransition(
     }
     // Staff/Admin can cancel active tickets (NEW, OPEN, IN_PROGRESS, WAITING_FOR_REQUESTER, REOPENED)
     if (next === TicketStatus.CANCELLED) {
-      return [
-        TicketStatus.NEW,
-        TicketStatus.OPEN,
-        TicketStatus.IN_PROGRESS,
-        TicketStatus.WAITING_FOR_REQUESTER,
-        TicketStatus.REOPENED,
-      ].includes(current);
+      return (
+        [
+          TicketStatus.NEW,
+          TicketStatus.OPEN,
+          TicketStatus.IN_PROGRESS,
+          TicketStatus.WAITING_FOR_REQUESTER,
+          TicketStatus.REOPENED,
+        ] as TicketStatus[]
+      ).includes(current);
     }
     // All other valid transitions in PERMITTED_TRANSITIONS are allowed for Staff/Admin
     return true;

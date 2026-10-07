@@ -10,11 +10,18 @@ export default function MyTicketsList() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to read initial URL search parameters (for drill-down navigation per BR-15)
+  const getInitialParam = (key: string) => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key) || "";
+  };
+
   // Filter & Search states
-  const [search, setSearch] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [priority, setPriority] = useState<string>("");
-  const [status, setStatus] = useState<string>("");
+  const [search, setSearch] = useState<string>(() => getInitialParam("search"));
+  const [categoryId, setCategoryId] = useState<string>(() => getInitialParam("categoryId"));
+  const [priority, setPriority] = useState<string>(() => getInitialParam("priority"));
+  const [status, setStatus] = useState<string>(() => getInitialParam("status"));
 
   // Pagination states
   const [page, setPage] = useState<number>(1);
@@ -245,6 +252,7 @@ export default function MyTicketsList() {
               <option value="CLOSED">CLOSED</option>
               <option value="REOPENED">REOPENED</option>
               <option value="CANCELLED">CANCELLED</option>
+              <option value="NEW,OPEN,IN_PROGRESS,WAITING_FOR_REQUESTER,REOPENED">MY OPEN (ACTIVE)</option>
             </select>
           </div>
 

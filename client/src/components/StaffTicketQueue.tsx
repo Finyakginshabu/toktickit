@@ -19,12 +19,23 @@ export default function StaffTicketQueue() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to read initial URL search parameters (for drill-down navigation per BR-15)
+  const getInitialParam = (key: string) => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key) || "";
+  };
+
   // Filter & Search states
-  const [search, setSearch] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [itPriority, setItPriority] = useState<string>("");
-  const [status, setStatus] = useState<string>("");
-  const [ownershipFilter, setOwnershipFilter] = useState<string>(""); // "" (All) | "me" | "unassigned"
+  const [search, setSearch] = useState<string>(() => getInitialParam("search"));
+  const [categoryId, setCategoryId] = useState<string>(() => getInitialParam("categoryId"));
+  const [itPriority, setItPriority] = useState<string>(() => getInitialParam("itPriority"));
+  const [status, setStatus] = useState<string>(() => getInitialParam("status"));
+  const [ownershipFilter, setOwnershipFilter] = useState<string>(() => {
+    const owner = getInitialParam("ownerId");
+    if (owner === "me" || owner === "unassigned") return owner;
+    return "";
+  });
 
   // Pagination states
   const [page, setPage] = useState<number>(1);
@@ -256,6 +267,7 @@ export default function StaffTicketQueue() {
               <option value="MEDIUM">MEDIUM</option>
               <option value="HIGH">HIGH</option>
               <option value="URGENT">URGENT</option>
+              <option value="HIGH,URGENT">HIGH & URGENT</option>
             </select>
           </div>
 
