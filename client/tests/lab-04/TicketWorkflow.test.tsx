@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ResolutionGateModal from "../../src/components/ResolutionGateModal.js";
 import ConflictModal from "../../src/components/ConflictModal.js";
@@ -301,19 +302,23 @@ describe("Lab 4 Ticket Workflow & Resolution Gate UI Suite (client/tests/lab-04/
       );
       window.history.pushState({ tab: "ticket-detail", ticketId: 12 }, "", "/tickets/12");
 
-      render(
-        <AuthProvider>
-          <RequesterProvider>
-            <RequesterTicketDetail />
-          </RequesterProvider>
-        </AuthProvider>
-      );
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <RequesterProvider>
+              <RequesterTicketDetail />
+            </RequesterProvider>
+          </AuthProvider>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId("cancel-ticket-btn")).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId("cancel-ticket-btn"));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("cancel-ticket-btn"));
+      });
       expect(cancelSpy).toHaveBeenCalledWith(12, 2);
     });
 
@@ -345,19 +350,23 @@ describe("Lab 4 Ticket Workflow & Resolution Gate UI Suite (client/tests/lab-04/
       );
       window.history.pushState({ tab: "ticket-detail", ticketId: 12 }, "", "/tickets/12");
 
-      render(
-        <AuthProvider>
-          <RequesterProvider>
-            <RequesterTicketDetail />
-          </RequesterProvider>
-        </AuthProvider>
-      );
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <RequesterProvider>
+              <RequesterTicketDetail />
+            </RequesterProvider>
+          </AuthProvider>
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId("reopen-ticket-btn")).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId("reopen-ticket-btn"));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("reopen-ticket-btn"));
+      });
       expect(reopenSpy).toHaveBeenCalledWith(12, 2);
     });
   });

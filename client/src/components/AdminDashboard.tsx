@@ -177,17 +177,14 @@ export default function AdminDashboard() {
                 <div className="admin-overview-tile p-3 bg-light rounded border text-start">
                   <h3 className="text-muted small text-uppercase fw-semibold mb-2">By Role</h3>
                   {[
-                    { label: "Requesters", count: data.userMetrics.usersByRole.REQUESTER },
+                    { label: "Requester", count: data.userMetrics.usersByRole.REQUESTER },
                     { label: "IT Staff", count: data.userMetrics.usersByRole.IT_STAFF },
-                    { label: "Admins", count: data.userMetrics.usersByRole.ADMINISTRATOR },
+                    { label: "Admin", count: data.userMetrics.usersByRole.ADMINISTRATOR },
                   ].map((role) => (
                     <div
                       className="d-flex align-items-center justify-content-between gap-2 small"
                       key={role.label}
-                    >
-                      <span className="text-muted">{role.label}</span>
-                      <span className="fw-semibold text-dark">{role.count}</span>
-                    </div>
+                    ><span className="text-muted">{role.label}:</span> <span className="fw-semibold text-dark">{role.count}</span></div>
                   ))}
                 </div>
               </div>

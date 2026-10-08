@@ -68,7 +68,7 @@ export default function RequesterTicketDetail() {
     try {
       const data = await getTicketDetail(selectedTicketId, requester.id);
       setTicket(data);
-      fetchComments(selectedTicketId);
+      await fetchComments(selectedTicketId);
     } catch (err: any) {
       if (err.status === 403 || err.code === "FORBIDDEN") {
         setIsForbidden(true);

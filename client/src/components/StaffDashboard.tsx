@@ -96,7 +96,7 @@ export default function StaffDashboard() {
   }
 
   return (
-    <div className="container py-4">
+    <div className="container zen-dashboard-container py-4">
       <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
         <div>
           <h1 className="h3 fw-bold text-dark mb-1">Welcome back, {user?.name || "Staff"}!</h1>

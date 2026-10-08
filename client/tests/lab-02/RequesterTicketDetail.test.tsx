@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "../../src/App.js";
 import * as api from "../../src/api.js";
@@ -108,11 +109,15 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     vi.spyOn(api, "getTickets").mockResolvedValue(makePageResponse([sampleTicket]));
     vi.spyOn(api, "getTicketDetail").mockResolvedValue(sampleTicket);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     // In My Tickets, click the ticket link to navigate to Ticket Detail
     const ticketLink = (await screen.findAllByText("TKT-2026-000001"))[0];
-    fireEvent.click(ticketLink);
+    await act(async () => {
+      fireEvent.click(ticketLink);
+    });
 
     // Detail view rendered
     expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
@@ -159,7 +164,9 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     vi.spyOn(api, "getPublicComments").mockResolvedValue([]);
     vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     fireEvent.click((await screen.findAllByText("TKT-2026-000001"))[0]);
     expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
@@ -168,7 +175,9 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     const actionsTab = screen.getByRole("tab", { name: /Actions Taken 0/i });
     expect(screen.queryByRole("tab", { name: /Internal Notes/i })).not.toBeInTheDocument();
 
-    fireEvent.click(actionsTab);
+    await act(async () => {
+      fireEvent.click(actionsTab);
+    });
 
     expect(screen.getByTestId("requester-actions-panel")).toBeVisible();
     expect(screen.getByTestId("actions-taken-section")).toBeInTheDocument();
@@ -188,10 +197,14 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     (forbiddenErr as any).status = 403;
     vi.spyOn(api, "getTicketDetail").mockRejectedValue(forbiddenErr);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     const ticketLink = (await screen.findAllByText("TKT-2026-000099"))[0];
-    fireEvent.click(ticketLink);
+    await act(async () => {
+      fireEvent.click(ticketLink);
+    });
 
     // Error view rendered
     expect(await screen.findByTestId("ticket-detail-error")).toBeInTheDocument();
@@ -207,10 +220,14 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     vi.spyOn(api, "getTickets").mockResolvedValue(makePageResponse([sampleTicket]));
     vi.spyOn(api, "getTicketDetail").mockResolvedValue(sampleTicket);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     const ticketLink = (await screen.findAllByText("TKT-2026-000001"))[0];
-    fireEvent.click(ticketLink);
+    await act(async () => {
+      fireEvent.click(ticketLink);
+    });
 
     expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
 

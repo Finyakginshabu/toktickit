@@ -1,6 +1,6 @@
 # TokTickIT - IT Service Desk Application
 
-TokTickIT is an internal IT service desk application developed for the CPE334 Software Engineering course. Lab 3 extends the Lab 2 requester ticketing MVP with production-style authentication, role-based access control, IT staff operations, and administrator user management.
+TokTickIT is an internal IT service desk application developed for the CPE334 Software Engineering course. The application spans four lab milestones, progressively adding authentication, attachment handling, user administration, Actions Taken diagnostic logging, Resolution Gate enforcement, role-tailored dashboards, Zen Green design system styling, accessibility hardening, and multi-role Playwright end-to-end verification.
 
 ## Features
 
@@ -31,6 +31,9 @@ TokTickIT is an internal IT service desk application developed for the CPE334 So
 - Update IT priority independently from requester priority.
 - Advance tickets through the approved status transition matrix.
 - Read and append public comments and internal notes.
+- Log technical diagnostic actions taken on a ticket (description, action type, time spent).
+- Attach multiple actions to a ticket and view the full action history.
+- Resolve tickets only after at least one Action Taken entry is recorded (Resolution Gate).
 
 ### Administrator workflows
 
@@ -40,9 +43,15 @@ TokTickIT is an internal IT service desk application developed for the CPE334 So
 - Reset a user initial password.
 - Protection against self-deactivation and deactivation or demotion of the last active administrator.
 
+### Role-specific dashboards
+
+- **Requester Dashboard**: Personal ticket summary with open/resolved counts and a recent-tickets list with drill-down links.
+- **IT Staff Dashboard**: Operational metric cards (New, Open, In Progress, Waiting for Requester, My Assigned) with daily velocity deltas, unassigned and high-priority secondary indicators, and a recent-activity feed.
+- **Administrator Dashboard**: Organisation-wide ticket metrics (all statuses), top-assignee workload ranking, and a user-administration quick-access panel.
+
 ### UI and responsive design
 
-The application uses the Zen Green design system across desktop, tablet, and mobile layouts. Internal notes use a distinct restricted visual treatment, and status, priority, and role badges include explicit text labels.
+The application uses the Zen Green design system across desktop, tablet, and mobile layouts. Internal notes use a distinct restricted visual treatment, and status, priority, and role badges include explicit text labels. All dashboard metric cards link directly to the filtered ticket queue for drill-down navigation.
 
 ## Tech Stack
 
@@ -59,20 +68,21 @@ The application uses the Zen Green design system across desktop, tablet, and mob
 ```text
 toktickit/
 ├── client/                         # React/Vite frontend
-│   ├── src/components/             # Login, requester, staff, and admin screens
+│   ├── src/components/             # Login, requester, staff, admin, and dashboard screens
 │   ├── src/context/                # Authentication and requester state
 │   ├── src/styles/                 # Zen Green theme
-│   └── tests/                      # Lab 1, Lab 2, and Lab 3 UI tests
+│   └── tests/                      # Lab 1–4 UI component tests
 ├── server/                         # Express/Prisma backend
-│   ├── prisma/schema.prisma        # User, ticket, attachment, and discussion models
-│   ├── prisma/seed.ts              # Deterministic test fixture seed
+│   ├── prisma/schema.prisma        # User, ticket, attachment, discussion, ActionTaken models
+│   ├── prisma/seed.ts              # Deterministic test fixture seed (idempotent)
 │   ├── src/middleware/             # Authentication and upload middleware
-│   ├── src/routes/                 # Auth, staff, and admin routes
+│   ├── src/routes/                 # Auth, staff, admin, and actions routes
 │   └── tests/                      # API and unit tests
 ├── e2e/                            # Playwright browser workflows
 │   ├── global-setup.ts             # Reseeds database before E2E runs
 │   ├── lab-02/                     # Lab 2 regression workflows
-│   └── lab-03/                     # Authentication, staff, and admin workflows
+│   ├── lab-03/                     # Authentication, staff, and admin workflows
+│   └── lab-04/                     # Actions Taken, Resolution Gate, and dashboard workflows
 ├── docs/                           # Lab specifications, API contracts, and test plans
 ├── artifacts/                      # Screenshot evidence
 ├── playwright.config.ts
@@ -124,7 +134,7 @@ npm run prisma:migrate --prefix server
 npm run prisma:seed --prefix server
 ```
 
-The seed creates categories, related systems, users, demo tickets, attachments, public comments, and internal notes. It resets the test fixture first, so do not run it against a database containing data you need to preserve.
+The seed creates categories, related systems, users, demo tickets, attachments, public comments, internal notes, and Actions Taken entries. It is idempotent — it resets existing fixture data before recreating it. Do not run it against a database containing data you need to preserve.
 
 ### 5. Run the application
 
@@ -142,15 +152,16 @@ npm run dev --prefix client
 
 The seed uses these credentials for local testing:
 
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| Requester | `jennifer.anderson@kmutt.ac.th` | `Password123!` |
-| Requester | `david.lee@kmutt.ac.th` | `Password123!` |
-| IT Staff | `staff.alice@toktickit.local` | `Password123!` |
-| Administrator | `admin@toktickit.local` | `AdminPass123!` |
-| First-login requester | `firstlogin@toktickit.local` | `InitialPassword123!` |
+| Role | Email | Password | Notes |
+| :--- | :--- | :--- | :--- |
+| Requester | `jennifer.anderson@kmutt.ac.th` | `Password123!` | Primary requester demo |
+| Requester | `david.lee@kmutt.ac.th` | `Password123!` | Secondary requester |
+| IT Staff | `staff.alice@toktickit.local` | `Password123!` | Primary staff demo |
+| IT Staff | `staff.bob@toktickit.local` | `Password123!` | Secondary staff (Lab 4) |
+| Administrator | `admin@toktickit.local` | `AdminPass123!` | Full admin access |
+| First-login requester | `firstlogin@toktickit.local` | `InitialPassword123!` | `mustChangePassword = true` |
 
-The first-login account is seeded with `mustChangePassword = true` to exercise the password-change flow. Other seeded accounts are ready for normal test use.
+The first-login account is seeded with `mustChangePassword = true` to exercise the mandatory password-change flow. All other accounts are ready for normal test use.
 
 ## API Overview
 
@@ -164,6 +175,8 @@ All protected endpoints require `Authorization: Bearer <jwt-token>`. The server 
 | Attachments | `POST /api/tickets/:id/attachments`, `GET /api/attachments/:id`, `GET /api/attachments/:id/download`, `PATCH /api/attachments/:id/soft-remove` |
 | Staff operations | `GET /api/staff/tickets`, `PATCH /api/tickets/:id/assignment`, `PATCH /api/tickets/:id/priority`, `PATCH /api/tickets/:id/status` |
 | Discussions | `GET/POST /api/tickets/:id/comments`, `GET/POST /api/tickets/:id/notes` |
+| Actions Taken | `GET /api/tickets/:id/actions`, `POST /api/tickets/:id/actions` |
+| Dashboards | `GET /api/dashboard/requester`, `GET /api/dashboard/staff`, `GET /api/dashboard/admin` |
 | Administration | `GET /api/admin/users`, `POST /api/admin/users`, `PATCH /api/admin/users/:id`, `POST /api/admin/users/:id/reset-password` |
 
 ## Testing
@@ -179,9 +192,12 @@ Other test commands:
 ```bash
 npm run test:server                 # Server API and unit tests
 npm run test:client                 # Client component tests
-npm run test:all                    # Server, client, then Lab 3 E2E
+npm run test:all                    # Server, client, and all E2E suites
 npm run test:e2e                    # Lab 3 Playwright workflows
 npm run test:e2e:lab2               # Lab 2 regression workflows
+npm run test:e2e:lab3               # Lab 3 Playwright workflows
+npm run test:e2e:lab4               # Lab 4 Playwright workflows
+npm run test:screenshots:lab4       # Lab 4 screenshot capture
 npm run test:screenshots:lab3       # Lab 3 screenshot capture
 npm run test:screenshots:lab2       # Lab 2 screenshot capture
 ```
@@ -190,6 +206,10 @@ The server test command reseeds the database before Vitest. Playwright global se
 
 ## Documentation
 
+- [Lab 4 specification](docs/lab-04/specification.md)
+- [Lab 4 REST API specification](docs/lab-04/api-spec.md)
+- [Lab 4 UI specification](docs/lab-04/ui-spec.md)
+- [Lab 4 test plan and traceability](docs/lab-04/tests.md)
 - [Lab 3 specification](docs/lab-03/specification.md)
 - [Lab 3 REST API specification](docs/lab-03/api-spec.md)
 - [Lab 3 UI specification](docs/lab-03/ui-spec.md)
