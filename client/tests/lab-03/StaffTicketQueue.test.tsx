@@ -127,7 +127,7 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
       expect(screen.queryByRole("button", { name: /User Management/i })).not.toBeInTheDocument();
     });
 
-    it("renders Administrator navigation: User Management (UI-03, AC-07, FR-05)", async () => {
+    it("renders Administrator navigation: Ticket Queue and User Management (UI-03, AC-07, FR-05)", async () => {
       localStorage.setItem("toktickit_auth_token", "mock-admin-token");
       localStorage.setItem(
         "toktickit_auth_user",
@@ -148,12 +148,13 @@ describe("Lab 3 Staff Ticket Queue & Role Navigation Suite (client/tests/lab-03/
         </AuthProvider>
       );
 
-      // Should show User Management
+      // Should show both Ticket Queue and User Management (per ui-spec.md §3)
+      expect(screen.getAllByRole("button", { name: /Ticket Queue/i }).length).toBeGreaterThan(0);
       expect(screen.getAllByRole("button", { name: /User Management/i }).length).toBeGreaterThan(0);
 
-      // Should NOT show My Tickets or Ticket Queue
+      // Should NOT show Requester-only tabs
       expect(screen.queryByRole("button", { name: /My Tickets/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /Ticket Queue/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Create Ticket/i })).not.toBeInTheDocument();
     });
   });
 

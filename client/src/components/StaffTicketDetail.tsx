@@ -6,6 +6,8 @@ import {
   claimOrAssignTicket,
   updateTicketPriority,
   updateTicketStatus,
+  cancelTicket,
+  reopenTicket,
   getPublicComments,
   createPublicComment,
   getInternalNotes,
@@ -17,19 +19,22 @@ import {
   TicketStatus,
   PublicComment,
   InternalNote,
+  ConflictErrorPayload,
 } from "../api.js";
 import AttachmentSection from "./AttachmentSection.js";
+import ActionsTakenSection from "./ActionsTakenSection.js";
+import ResolutionGateModal from "./ResolutionGateModal.js";
+import ConflictModal from "./ConflictModal.js";
 
 const PERMITTED_NEXT_STATUSES: Record<TicketStatus, TicketStatus[]> = {
-  NEW: ["OPEN"],
-  OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "CANCELLED"],
+  NEW: ["OPEN", "CANCELLED"],
+  OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
   IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
-  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "RESOLVED", "CANCELLED"],
+  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "OPEN", "RESOLVED", "CANCELLED"],
   RESOLVED: ["CLOSED", "REOPENED"],
   CLOSED: ["REOPENED"],
-  REOPENED: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
-  CANCELLED: ["REOPENED"],
-  PENDING: ["IN_PROGRESS", "RESOLVED", "CANCELLED"],
+  REOPENED: ["OPEN", "IN_PROGRESS", "RESOLVED", "CANCELLED"],
+  CANCELLED: [],
 };
 
 export default function StaffTicketDetail() {
@@ -46,7 +51,8 @@ export default function StaffTicketDetail() {
   const [notes, setNotes] = useState<InternalNote[]>([]);
   const [commentsLoading, setCommentsLoading] = useState<boolean>(false);
   const [notesLoading, setNotesLoading] = useState<boolean>(false);
-  const [activeCommsTab, setActiveCommsTab] = useState<"comments" | "notes">("comments");
+  const [actionsCount, setActionsCount] = useState<number>(0);
+  const [activeCommsTab, setActiveCommsTab] = useState<"comments" | "notes" | "actions">("comments");
 
   // Form states for adding comment & note
   const [commentInput, setCommentInput] = useState<string>("");
@@ -65,6 +71,11 @@ export default function StaffTicketDetail() {
   const [pendingStatus, setPendingStatus] = useState<TicketStatus | null>(null);
   const [resolutionSummary, setResolutionSummary] = useState<string>("");
   const [showStatusModal, setShowStatusModal] = useState<boolean>(false);
+
+  // Resolution Gate Modal & Conflict Modal states
+  const [showResolutionGateModal, setShowResolutionGateModal] = useState<boolean>(false);
+  const [conflictData, setConflictData] = useState<ConflictErrorPayload | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
 
   // Fetch ticket details
   const fetchTicket = useCallback(async () => {
@@ -185,11 +196,39 @@ export default function StaffTicketDetail() {
     }
   };
 
-  // Operational: Initiate Status Transition (opens confirmation modal)
+  // Operational: Initiate Status Transition (opens confirmation modal or Resolution Gate modal)
   const handleSelectStatus = (newStatus: TicketStatus) => {
+    if (newStatus === "RESOLVED") {
+      setShowResolutionGateModal(true);
+      return;
+    }
     setPendingStatus(newStatus);
     setResolutionSummary("");
     setShowStatusModal(true);
+  };
+
+  // Operational: Confirm Resolution Gate
+  const handleConfirmResolution = async (summary: string, expectedVersion: number) => {
+    if (!ticket) return;
+    setOpLoading(true);
+    setOpFeedback(null);
+    try {
+      await updateTicketStatus(ticket.id, "RESOLVED", summary, expectedVersion);
+      setShowResolutionGateModal(false);
+      setOpFeedback({
+        type: "success",
+        message: "Ticket successfully resolved.",
+      });
+      await fetchTicket();
+    } catch (err: any) {
+      if (err.code === "CONFLICT") {
+        setConflictData(err.currentTicket);
+        setShowConflictModal(true);
+      }
+      throw err;
+    } finally {
+      setOpLoading(false);
+    }
   };
 
   // Operational: Confirm Status Transition
@@ -199,22 +238,43 @@ export default function StaffTicketDetail() {
     setShowStatusModal(false);
     setOpFeedback(null);
     try {
-      await updateTicketStatus(
-        ticket.id,
-        pendingStatus,
-        pendingStatus === "RESOLVED" ? resolutionSummary.trim() || undefined : undefined
-      );
+      if (pendingStatus === "CANCELLED") {
+        await cancelTicket(ticket.id, ticket.version ?? 1);
+      } else if (pendingStatus === "REOPENED") {
+        await reopenTicket(ticket.id, ticket.version ?? 1);
+      } else {
+        await updateTicketStatus(
+          ticket.id,
+          pendingStatus,
+          pendingStatus === "RESOLVED" ? resolutionSummary.trim() || undefined : undefined
+        );
+      }
       setOpFeedback({
         type: "success",
         message: `Ticket status successfully changed to ${pendingStatus.replace(/_/g, " ")}.`,
       });
       await fetchTicket();
     } catch (err: any) {
-      setOpFeedback({ type: "danger", message: err.message || "Failed to update ticket status." });
+      if (err.code === "CONFLICT") {
+        setConflictData(err.currentTicket);
+        setShowConflictModal(true);
+      } else {
+        setOpFeedback({ type: "danger", message: err.message || "Failed to update ticket status." });
+      }
     } finally {
       setOpLoading(false);
       setPendingStatus(null);
     }
+  };
+
+  const handleConflictReload = async () => {
+    setShowConflictModal(false);
+    setConflictData(null);
+    await fetchTicket();
+  };
+
+  const handleConflictKeepInput = () => {
+    setShowConflictModal(false);
   };
 
   // Discussions: Submit Public Comment
@@ -271,7 +331,6 @@ export default function StaffTicketDetail() {
       OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
       WAITING_FOR_REQUESTER: "badge-status-waiting",
-      PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
       REOPENED: "badge-status-reopened",
@@ -352,6 +411,27 @@ export default function StaffTicketDetail() {
           <span className="text-muted small fw-medium">Ticket ID: #{ticket.id}</span>
         </div>
       </div>
+
+      {/* Requester Advisory Resolution Banner (BR-10, ui-spec §4.6) */}
+      {ticket.problemAppearsResolved && (
+        <div
+          className="alert alert-success d-flex align-items-center gap-2 mb-3"
+          role="alert"
+          data-testid="requester-resolved-advisory"
+          style={{ backgroundColor: "var(--color-success-bg, #F0FFF4)", borderColor: "#B8E2C8" }}
+        >
+          <span
+            className="material-symbols-outlined fs-4"
+            style={{ color: "var(--color-success, #22543D)" }}
+          >
+            check_circle
+          </span>
+          <div className="small flex-grow-1" style={{ color: "var(--color-text-main, #1C2A22)" }}>
+            <strong style={{ color: "var(--color-success, #22543D)" }}>Requester Feedback:</strong>{" "}
+            The requester indicated that the problem appears resolved. Please verify actions and formally resolve the ticket.
+          </div>
+        </div>
+      )}
 
       {/* Operation Feedback Banner */}
       {opFeedback && (
@@ -436,7 +516,7 @@ export default function StaffTicketDetail() {
                 )}
               </div>
               {isClaimedByMe && (
-                <span className="text-success small d-block mt-1">✓ Claimed by you</span>
+                <span className="text-success small d-block mt-1">Claimed by you</span>
               )}
             </div>
 
@@ -468,7 +548,7 @@ export default function StaffTicketDetail() {
             {/* 3. Status Transition Action Selector */}
             <div className="col-12">
               <label htmlFor="statusTransitionSelect" className="form-label small fw-semibold text-muted mb-1">
-                Advance Status Workflow
+                Status Workflow
               </label>
               <div className="d-flex flex-wrap gap-2">
                 {nextStatuses.length === 0 ? (
@@ -562,7 +642,7 @@ export default function StaffTicketDetail() {
         onAttachmentChanged={fetchTicket}
       />
 
-      {/* Communications — Tabbed Panel (below attachments) */}
+      {/* Ticket workspace tabs (below attachments) */}
       <div
         className="zen-card p-3 mt-4"
         style={activeCommsTab === "notes" ? { backgroundColor: "#FFFDF0", border: "1.5px solid #ECC94B" } : {}}
@@ -596,7 +676,39 @@ export default function StaffTicketDetail() {
               <span className="badge bg-warning-subtle text-dark border border-warning ms-1">{notes.length}</span>
             </button>
           </li>
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              id="actions-taken-tab"
+              className={`nav-link d-flex align-items-center gap-1 ${activeCommsTab === "actions" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveCommsTab("actions")}
+              aria-selected={activeCommsTab === "actions"}
+              aria-controls="actions-taken-panel"
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">construction</span>
+              Actions Taken
+              <span className="badge bg-light text-dark border ms-1">{actionsCount}</span>
+            </button>
+          </li>
         </ul>
+
+        <div
+          id="actions-taken-panel"
+          data-testid="actions-taken-panel"
+          role="tabpanel"
+          aria-labelledby="actions-taken-tab"
+          className={activeCommsTab !== "actions" ? "d-none" : ""}
+        >
+          <ActionsTakenSection
+            ticketId={ticket.id}
+            ticketStatus={ticket.currentStatus}
+            isRequester={false}
+            embedded
+            onActionCountChange={setActionsCount}
+            onActionsChanged={fetchTicket}
+          />
+        </div>
 
         {/* Public Comments Panel */}
         <div data-testid="public-comments-panel" className={activeCommsTab !== "comments" ? "d-none" : ""}>
@@ -805,6 +917,26 @@ export default function StaffTicketDetail() {
           </div>
         </div>
       )}
+
+      {/* Resolution Gate Guidance Modal (BR-09, ui-spec §4.6) */}
+      {ticket && (
+        <ResolutionGateModal
+          isOpen={showResolutionGateModal}
+          ticket={ticket}
+          actionsCount={actionsCount}
+          onClose={() => setShowResolutionGateModal(false)}
+          onConfirm={handleConfirmResolution}
+          loading={opLoading}
+        />
+      )}
+
+      {/* Optimistic Concurrency Conflict Modal (BR-11, FR-19, ui-spec §4.7) */}
+      <ConflictModal
+        isOpen={showConflictModal}
+        conflictData={conflictData}
+        onReload={handleConflictReload}
+        onKeepInput={handleConflictKeepInput}
+      />
       </div>
     </div>
   );

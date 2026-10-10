@@ -4,14 +4,20 @@ import bcrypt from "bcryptjs";
 import { Priority, Role, TicketStatus } from "@prisma/client";
 import { getPrisma } from "../src/prisma.js";
 
-// Lab 3 Seed Data: Categories, Related Systems, Multi-Role Users, Tickets, and Attachments
+// Lab 4 Seed Data: Categories, Systems, Multi-Role Users, Tickets, Actions Taken, and Discussions
 async function main() {
   const prisma = getPrisma();
 
-  // Rebuild the test fixture so repeated E2E and API test runs are isolated.
-  await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Attachment", "PublicComment", "InternalNote", "Ticket", "User", "Category", "RelatedSystem" RESTART IDENTITY CASCADE',
-  );
+  // Backfill resolvedAt on any legacy RESOLVED/CLOSED tickets where it is null
+  await prisma.$executeRawUnsafe(`
+    UPDATE "Ticket"
+    SET "resolvedAt" = "updatedAt"
+    WHERE "currentStatus" IN ('RESOLVED', 'CLOSED') AND "resolvedAt" IS NULL
+  `);
+
+  await prisma.user.deleteMany({
+    where: { email: "rachel.empty@kmutt.ac.th" },
+  });
 
   // 1. Seed Categories (4)
   const categories = [
@@ -91,6 +97,16 @@ async function main() {
       role: "REQUESTER" as const,
       passwordHash: defaultUserHash,
       department: "Electrical Engineering",
+      isActive: true,
+      mustChangePassword: false,
+    },
+    // Active Requester with 0 tickets (proves empty dashboard state: AC-13)
+    {
+      email: "rachel.empty@toktickit.local",
+      name: "Rachel Empty",
+      role: "REQUESTER" as const,
+      passwordHash: defaultUserHash,
+      department: "Mechanical Engineering",
       isActive: true,
       mustChangePassword: false,
     },
@@ -260,6 +276,7 @@ async function main() {
         requestedPriority: "LOW" as const,
         itPriority: "LOW" as const,
         currentStatus: "RESOLVED" as const,
+        resolvedAt: new Date("2026-09-17T11:45:00.000Z"),
         ticketOwnerId: aliceStaff ? aliceStaff.id : null,
         summary: "Office printer paper jam in floor 4 lab",
         description: "Printer tray 2 indicates paper jam error even after clearing all visible sheets.",
@@ -276,6 +293,7 @@ async function main() {
           itPriority: dt.itPriority as Priority,
           currentStatus: dt.currentStatus as TicketStatus,
           ticketOwnerId: dt.ticketOwnerId,
+          ...(dt.resolvedAt ? { resolvedAt: dt.resolvedAt } : {}),
         },
         create: {
           ...dt,
@@ -358,6 +376,7 @@ async function main() {
         requestedPriority: "LOW" as const,
         itPriority: "LOW" as const,
         currentStatus: "CLOSED" as const,
+        resolvedAt: new Date("2026-09-17T14:00:00.000Z"),
         ticketOwnerId: charlieStaff ? charlieStaff.id : null,
         summary: "External monitor HDMI adapter replacement",
         description: "USB-C to HDMI adapter in lab room 302 stopped displaying external video output.",
@@ -374,6 +393,7 @@ async function main() {
           itPriority: dt.itPriority as Priority,
           currentStatus: dt.currentStatus as TicketStatus,
           ticketOwnerId: dt.ticketOwnerId,
+          ...(dt.resolvedAt ? { resolvedAt: dt.resolvedAt } : {}),
         },
         create: {
           ...dt,
@@ -566,6 +586,80 @@ async function main() {
   }
 
   console.log(`✓ Seeded demo discussions and requester resolution successfully.`);
+
+  // 7. Seed Demo Actions Taken (Idempotent: checks existing actions per ticket)
+  const tkt5 = await prisma.ticket.findUnique({ where: { ticketNumber: "TKT-2026-000005" } });
+  if (tkt5 && aliceStaff) {
+    const existingTkt5Actions = await prisma.actionTaken.count({ where: { ticketId: tkt5.id } });
+    if (existingTkt5Actions === 0) {
+      await prisma.actionTaken.create({
+        data: {
+          ticketId: tkt5.id,
+          performedById: aliceStaff.id,
+          actionDateTime: new Date("2026-09-17T11:30:00.000Z"),
+          actionDescription: "Inspected paper path and cleared jammed sheet fragments from feed roller assembly.",
+          result: "Printer test page fed cleanly across 10 duplex copies without jamming.",
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: "See test print output log.",
+          version: 1,
+        },
+      });
+    }
+  }
+
+  if (tkt4 && aliceStaff && bobStaff) {
+    const existingTkt4Actions = await prisma.actionTaken.count({ where: { ticketId: tkt4.id } });
+    if (existingTkt4Actions === 0) {
+      await prisma.actionTaken.createMany({
+        data: [
+          {
+            ticketId: tkt4.id,
+            performedById: aliceStaff.id,
+            actionDateTime: new Date("2026-09-17T10:05:00.000Z"),
+            actionDescription: "Analyzed network route and reproduced connection drop at 10-minute idle threshold.",
+            result: "Confirmed TCP keep-alive timeout issue on Gateway cluster 3.",
+            followUpRequired: false,
+            followUpNote: null,
+            attachmentNotes: "Refer to vpn_drop_capture.pcap in lab archives.",
+            version: 1,
+          },
+          {
+            ticketId: tkt4.id,
+            performedById: bobStaff.id,
+            actionDateTime: new Date("2026-09-17T10:30:00.000Z"),
+            actionDescription: "Deploying updated firewall session timeout profile on Gateway 3.",
+            result: null,
+            followUpRequired: false,
+            followUpNote: null,
+            attachmentNotes: null,
+            version: 1,
+          },
+        ],
+      });
+    }
+  }
+
+  if (tkt2 && aliceStaff) {
+    const existingTkt2Actions = await prisma.actionTaken.count({ where: { ticketId: tkt2.id } });
+    if (existingTkt2Actions === 0) {
+      await prisma.actionTaken.create({
+        data: {
+          ticketId: tkt2.id,
+          performedById: aliceStaff.id,
+          actionDateTime: new Date("2026-09-17T09:45:00.000Z"),
+          actionDescription: "Re-calibrated transmission power on 4th floor access point zone B.",
+          result: "Signal strength improved to -58 dBm at user workstation.",
+          followUpRequired: true,
+          followUpNote: "Verify with user on Friday if authentication loop recurs in room 402.",
+          attachmentNotes: "AP-4B diagnostic report generated.",
+          version: 1,
+        },
+      });
+    }
+  }
+
+  console.log(`✓ Seeded demo actions taken successfully.`);
 }
 
 main()

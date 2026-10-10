@@ -9,6 +9,12 @@ import {
   User,
   PublicComment,
   InternalNote,
+  ActionTaken,
+  CreateActionTakenPayload,
+  UpdateActionTakenPayload,
+  RequesterDashboardResponse,
+  StaffDashboardResponse,
+  AdminDashboardResponse,
 } from "./types/index.js";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -51,7 +57,6 @@ export async function getCategories(): Promise<Category[]> {
 
   return res.json();
 }
-
 export async function getRequesters(): Promise<RequesterUser[]> {
   const res = await fetch(`${API_URL}/api/requesters`).catch(() => {
     throw new Error("Unable to connect to TokTickIT API");
@@ -343,24 +348,104 @@ export async function updateTicketPriority(
 export async function updateTicketStatus(
   ticketId: number,
   status: TicketStatus,
-  resolutionSummary?: string
-): Promise<{ id: number; currentStatus: TicketStatus; resolutionSummary?: string | null }> {
-  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/status`, {
+  resolutionSummary?: string,
+  expectedVersion?: number
+): Promise<{ id: number; currentStatus: TicketStatus; resolutionSummary?: string | null; version?: number; resolvedAt?: string | null }> {
+  const payload: any = { status };
+  if (resolutionSummary !== undefined) {
+    payload.resolutionSummary = resolutionSummary;
+  }
+  if (expectedVersion !== undefined) {
+    payload.expectedVersion = expectedVersion;
+  }
+
+  // Hit the Lab 4 staff status endpoint, with fallback to legacy tickets status endpoint
+  let res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/status`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ status, resolutionSummary }),
-  }).catch(() => {
-    throw new Error("Unable to connect to TokTickIT API");
-  });
+    body: JSON.stringify(payload),
+  }).catch(() => null);
+
+  if (!res || res.status === 404) {
+    res = await fetch(`${API_URL}/api/tickets/${ticketId}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      throw new Error("Unable to connect to TokTickIT API");
+    });
+  }
 
   if (!res.ok) {
     const errorJson = await res.json().catch(() => null);
     const message = errorJson?.error?.message ?? `Unable to update ticket status (Status: ${res.status})`;
     const error = new Error(message);
     (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).currentTicket = errorJson?.error?.currentTicket;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function cancelTicket(
+  ticketId: number,
+  expectedVersion: number
+): Promise<{ id: number; currentStatus: TicketStatus; version: number }> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/cancel`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ expectedVersion }),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to cancel ticket (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).currentTicket = errorJson?.error?.currentTicket;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function reopenTicket(
+  ticketId: number,
+  expectedVersion: number
+): Promise<{ id: number; currentStatus: TicketStatus; version: number }> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/reopen`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ expectedVersion }),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to reopen ticket (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).currentTicket = errorJson?.error?.currentTicket;
+    (error as any).status = res.status;
     throw error;
   }
 
@@ -616,5 +701,143 @@ export async function resetAdminUserPassword(
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 — Actions Taken APIs
+// ---------------------------------------------------------------------------
 
+export async function getTicketActions(ticketId: number): Promise<ActionTaken[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
 
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to fetch actions taken (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function createTicketAction(
+  ticketId: number,
+  payload: CreateActionTakenPayload
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to record action taken (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function updateTicketAction(
+  ticketId: number,
+  actionId: number,
+  payload: UpdateActionTakenPayload
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions/${actionId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to update action taken (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).code = errorJson?.error?.code;
+    (error as any).details = errorJson?.error?.details;
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Dashboard API Functions (FR-14, FR-15, FR-16, BR-12, BR-13, BR-14)
+// ---------------------------------------------------------------------------
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/requester`, {
+    headers: getAuthHeaders(),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to load requester dashboard (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/staff`, {
+    headers: getAuthHeaders(),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to load staff dashboard (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/admin`, {
+    headers: getAuthHeaders(),
+  }).catch(() => {
+    throw new Error("Unable to connect to TokTickIT API");
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => null);
+    const message = errorJson?.error?.message ?? `Unable to load admin dashboard (Status: ${res.status})`;
+    const error = new Error(message);
+    (error as any).status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}

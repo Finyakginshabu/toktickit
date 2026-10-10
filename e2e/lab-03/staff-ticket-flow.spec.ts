@@ -12,9 +12,12 @@ test.describe("Lab 3 IT Staff Ticket Flow E2E Suite (E2E-02)", () => {
     await page.fill("#login-password", "Password123!");
     await page.click('button[type="submit"]');
 
-    // Confirm landed on Ticket Queue
+    // Confirm authentication and navigate to Ticket Queue
     await expect(page.locator("header")).toContainText("Alice Support");
     await expect(page.locator("header")).toContainText("IT Staff");
+    const queueNav = page.locator('header nav button:has-text("Ticket Queue")').first();
+    await queueNav.waitFor({ state: "visible", timeout: 8000 });
+    await queueNav.click();
     await expect(page.locator("h1")).toContainText("IT Staff Ticket Queue");
   });
 

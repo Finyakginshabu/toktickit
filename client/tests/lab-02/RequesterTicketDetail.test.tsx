@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "../../src/App.js";
 import * as api from "../../src/api.js";
@@ -108,11 +109,15 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     vi.spyOn(api, "getTickets").mockResolvedValue(makePageResponse([sampleTicket]));
     vi.spyOn(api, "getTicketDetail").mockResolvedValue(sampleTicket);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     // In My Tickets, click the ticket link to navigate to Ticket Detail
     const ticketLink = (await screen.findAllByText("TKT-2026-000001"))[0];
-    fireEvent.click(ticketLink);
+    await act(async () => {
+      fireEvent.click(ticketLink);
+    });
 
     // Detail view rendered
     expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
@@ -150,6 +155,35 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     expect(screen.getByText("screen_issue.png")).toBeInTheDocument();
   });
 
+  it("shows Actions Taken in its own tab without exposing Internal Notes", async () => {
+    localStorage.setItem("toktickit_dev_requester_id", "1");
+
+    const sampleTicket = makeTicket();
+    vi.spyOn(api, "getTickets").mockResolvedValue(makePageResponse([sampleTicket]));
+    vi.spyOn(api, "getTicketDetail").mockResolvedValue(sampleTicket);
+    vi.spyOn(api, "getPublicComments").mockResolvedValue([]);
+    vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    fireEvent.click((await screen.findAllByText("TKT-2026-000001"))[0]);
+    expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
+
+    expect(screen.getByRole("tab", { name: /Public Comments/i })).toBeInTheDocument();
+    const actionsTab = screen.getByRole("tab", { name: /Actions Taken 0/i });
+    expect(screen.queryByRole("tab", { name: /Internal Notes/i })).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(actionsTab);
+    });
+
+    expect(screen.getByTestId("requester-actions-panel")).toBeVisible();
+    expect(screen.getByTestId("actions-taken-section")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add Action Taken/i })).not.toBeInTheDocument();
+  });
+
   // UI-08b: Cross-requester / unauthorized ticket access displays error alert
   it("displays unauthorized error alert when accessing non-owned ticket (UI-08, AC-14, BR-05)", async () => {
     localStorage.setItem("toktickit_dev_requester_id", "1");
@@ -163,10 +197,14 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     (forbiddenErr as any).status = 403;
     vi.spyOn(api, "getTicketDetail").mockRejectedValue(forbiddenErr);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     const ticketLink = (await screen.findAllByText("TKT-2026-000099"))[0];
-    fireEvent.click(ticketLink);
+    await act(async () => {
+      fireEvent.click(ticketLink);
+    });
 
     // Error view rendered
     expect(await screen.findByTestId("ticket-detail-error")).toBeInTheDocument();
@@ -182,10 +220,14 @@ describe("Lab 2 Requester Ticket Detail Suite (client/tests/lab-02/RequesterTick
     vi.spyOn(api, "getTickets").mockResolvedValue(makePageResponse([sampleTicket]));
     vi.spyOn(api, "getTicketDetail").mockResolvedValue(sampleTicket);
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     const ticketLink = (await screen.findAllByText("TKT-2026-000001"))[0];
-    fireEvent.click(ticketLink);
+    await act(async () => {
+      fireEvent.click(ticketLink);
+    });
 
     expect(await screen.findByTestId("ticket-detail-view")).toBeInTheDocument();
 

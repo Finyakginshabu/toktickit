@@ -3,14 +3,19 @@ import { useRequester } from "../context/RequesterContext.js";
 import {
   getTicketDetail,
   indicateProblemResolved,
+  cancelTicket,
+  reopenTicket,
   getPublicComments,
   createPublicComment,
   Ticket,
   Priority,
   TicketStatus,
   PublicComment,
+  ConflictErrorPayload,
 } from "../api.js";
 import AttachmentSection from "./AttachmentSection.js";
+import ActionsTakenSection from "./ActionsTakenSection.js";
+import ConflictModal from "./ConflictModal.js";
 
 export default function RequesterTicketDetail() {
   const { requester, selectedTicketId, setSelectedTicketId, setActiveTab } = useRequester();
@@ -26,9 +31,16 @@ export default function RequesterTicketDetail() {
   const [commentInput, setCommentInput] = useState<string>("");
   const [commentSubmitting, setCommentSubmitting] = useState<boolean>(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [actionsCount, setActionsCount] = useState<number>(0);
+  const [activeTicketTab, setActiveTicketTab] = useState<"comments" | "actions">("comments");
 
   const [resolveLoading, setResolveLoading] = useState<boolean>(false);
   const [resolveFeedback, setResolveFeedback] = useState<{ type: "success" | "danger"; message: string } | null>(null);
+
+  // Optimistic concurrency collision state & action loading
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [conflictData, setConflictData] = useState<ConflictErrorPayload | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState<boolean>(false);
 
   const fetchComments = useCallback(async (ticketId: number) => {
     setCommentsLoading(true);
@@ -56,7 +68,7 @@ export default function RequesterTicketDetail() {
     try {
       const data = await getTicketDetail(selectedTicketId, requester.id);
       setTicket(data);
-      fetchComments(selectedTicketId);
+      await fetchComments(selectedTicketId);
     } catch (err: any) {
       if (err.status === 403 || err.code === "FORBIDDEN") {
         setIsForbidden(true);
@@ -95,6 +107,68 @@ export default function RequesterTicketDetail() {
     } finally {
       setResolveLoading(false);
     }
+  };
+
+  const handleCancelTicket = async () => {
+    if (!ticket) return;
+    setActionLoading(true);
+    setResolveFeedback(null);
+    try {
+      await cancelTicket(ticket.id, ticket.version ?? 1);
+      setResolveFeedback({
+        type: "success",
+        message: "Your ticket has been cancelled successfully.",
+      });
+      await fetchTicket();
+    } catch (err: any) {
+      if (err.code === "CONFLICT") {
+        setConflictData(err.currentTicket);
+        setShowConflictModal(true);
+      } else {
+        setResolveFeedback({
+          type: "danger",
+          message: err.message || "Failed to cancel ticket.",
+        });
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReopenTicket = async () => {
+    if (!ticket) return;
+    setActionLoading(true);
+    setResolveFeedback(null);
+    try {
+      await reopenTicket(ticket.id, ticket.version ?? 1);
+      setResolveFeedback({
+        type: "success",
+        message: "Your ticket has been reopened.",
+      });
+      await fetchTicket();
+    } catch (err: any) {
+      if (err.code === "CONFLICT") {
+        setConflictData(err.currentTicket);
+        setShowConflictModal(true);
+      } else {
+        setResolveFeedback({
+          type: "danger",
+          message: err.message || "Failed to reopen ticket.",
+        });
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConflictReload = async () => {
+    setShowConflictModal(false);
+    setConflictData(null);
+    await fetchTicket();
+  };
+
+  const handleConflictKeepInput = () => {
+    setShowConflictModal(false);
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -137,7 +211,6 @@ export default function RequesterTicketDetail() {
       OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
       WAITING_FOR_REQUESTER: "badge-status-waiting",
-      PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
       REOPENED: "badge-status-reopened",
@@ -249,13 +322,13 @@ export default function RequesterTicketDetail() {
                 <span className="material-symbols-outlined fs-6">check_circle</span>
                 Problem Appears Resolved
               </span>
-            ) : ticket.currentStatus !== "RESOLVED" && ticket.currentStatus !== "CLOSED" ? (
+            ) : ticket.currentStatus !== "RESOLVED" && ticket.currentStatus !== "CLOSED" && ticket.currentStatus !== "CANCELLED" ? (
               <button
                 type="button"
                 data-testid="indicate-resolved-btn"
                 className="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
                 onClick={handleIndicateResolved}
-                disabled={resolveLoading}
+                disabled={resolveLoading || actionLoading}
                 title="Let IT staff know that this issue appears fixed"
               >
                 {resolveLoading ? (
@@ -266,6 +339,42 @@ export default function RequesterTicketDetail() {
                 <span>Problem Appears Resolved</span>
               </button>
             ) : null}
+
+            {ticket.currentStatus === "NEW" && (
+              <button
+                type="button"
+                data-testid="cancel-ticket-btn"
+                className="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+                onClick={handleCancelTicket}
+                disabled={actionLoading || resolveLoading}
+                title="Withdraw your ticket before work begins"
+              >
+                {actionLoading ? (
+                  <span className="spinner-border spinner-border-sm" role="status" />
+                ) : (
+                  <span className="material-symbols-outlined fs-6">cancel</span>
+                )}
+                <span>Cancel Ticket</span>
+              </button>
+            )}
+
+            {ticket.currentStatus === "RESOLVED" && (
+              <button
+                type="button"
+                data-testid="reopen-ticket-btn"
+                className="btn btn-sm btn-outline-warning d-flex align-items-center gap-1 text-dark"
+                onClick={handleReopenTicket}
+                disabled={actionLoading || resolveLoading}
+                title="Reopen this ticket if the issue recurred or resolution was unsatisfactory"
+              >
+                {actionLoading ? (
+                  <span className="spinner-border spinner-border-sm" role="status" />
+                ) : (
+                  <span className="material-symbols-outlined fs-6">replay</span>
+                )}
+                <span>Reopen Ticket</span>
+              </button>
+            )}
 
             <div>
               <small className="text-muted d-block text-end mb-1">Current Status</small>
@@ -382,8 +491,66 @@ export default function RequesterTicketDetail() {
         onAttachmentChanged={fetchTicket}
       />
 
-      {/* Public Comments Thread */}
-      <div className="zen-card p-4 mt-4" data-testid="requester-comments-section">
+      {/* Ticket workspace tabs */}
+      <div className="zen-card p-3 mt-4" data-testid="requester-ticket-workspace">
+        <ul className="nav nav-tabs mb-3" role="tablist">
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              id="requester-comments-tab"
+              className={`nav-link d-flex align-items-center gap-1 ${activeTicketTab === "comments" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveTicketTab("comments")}
+              aria-selected={activeTicketTab === "comments"}
+              aria-controls="requester-comments-panel"
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">forum</span>
+              Public Comments
+              <span className="badge bg-light text-dark border ms-1">{comments.length}</span>
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              type="button"
+              id="requester-actions-tab"
+              className={`nav-link d-flex align-items-center gap-1 ${activeTicketTab === "actions" ? "active text-success fw-semibold" : "text-muted"}`}
+              onClick={() => setActiveTicketTab("actions")}
+              aria-selected={activeTicketTab === "actions"}
+              aria-controls="requester-actions-panel"
+              role="tab"
+            >
+              <span className="material-symbols-outlined fs-6">construction</span>
+              Actions Taken
+              <span className="badge bg-light text-dark border ms-1">{actionsCount}</span>
+            </button>
+          </li>
+        </ul>
+
+        <div
+          id="requester-actions-panel"
+          data-testid="requester-actions-panel"
+          role="tabpanel"
+          aria-labelledby="requester-actions-tab"
+          className={activeTicketTab !== "actions" ? "d-none" : ""}
+        >
+          <ActionsTakenSection
+            ticketId={ticket.id}
+            ticketStatus={ticket.currentStatus}
+            isRequester={true}
+            embedded
+            onActionCountChange={setActionsCount}
+            onActionsChanged={fetchTicket}
+          />
+        </div>
+
+        {/* Public Comments Thread */}
+        <div
+          id="requester-comments-panel"
+          role="tabpanel"
+          aria-labelledby="requester-comments-tab"
+          className={activeTicketTab !== "comments" ? "d-none" : ""}
+          data-testid="requester-comments-section"
+        >
         <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
           <div>
             <h2 className="h5 fw-bold text-success mb-0 d-flex align-items-center gap-2">
@@ -480,7 +647,15 @@ export default function RequesterTicketDetail() {
             )}
           </button>
         </form>
+        </div>
       </div>
+
+      <ConflictModal
+        isOpen={showConflictModal}
+        conflictData={conflictData}
+        onReload={handleConflictReload}
+        onKeepInput={handleConflictKeepInput}
+      />
     </div>
   );
 }

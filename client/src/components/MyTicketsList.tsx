@@ -10,11 +10,18 @@ export default function MyTicketsList() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to read initial URL search parameters (for drill-down navigation per BR-15)
+  const getInitialParam = (key: string) => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get(key) || "";
+  };
+
   // Filter & Search states
-  const [search, setSearch] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
-  const [priority, setPriority] = useState<string>("");
-  const [status, setStatus] = useState<string>("");
+  const [search, setSearch] = useState<string>(() => getInitialParam("search"));
+  const [categoryId, setCategoryId] = useState<string>(() => getInitialParam("categoryId"));
+  const [priority, setPriority] = useState<string>(() => getInitialParam("priority"));
+  const [status, setStatus] = useState<string>(() => getInitialParam("status"));
 
   // Pagination states
   const [page, setPage] = useState<number>(1);
@@ -116,7 +123,6 @@ export default function MyTicketsList() {
       OPEN: "badge-status-open",
       IN_PROGRESS: "badge-status-in-progress",
       WAITING_FOR_REQUESTER: "badge-status-waiting",
-      PENDING: "badge-status-pending",
       RESOLVED: "badge-status-resolved",
       CLOSED: "badge-status-closed",
       REOPENED: "badge-status-reopened",
@@ -239,10 +245,14 @@ export default function MyTicketsList() {
             >
               <option value="">All Statuses</option>
               <option value="NEW">NEW</option>
+              <option value="OPEN">OPEN</option>
               <option value="IN_PROGRESS">IN PROGRESS</option>
-              <option value="PENDING">PENDING</option>
+              <option value="WAITING_FOR_REQUESTER">WAITING FOR REQUESTER</option>
               <option value="RESOLVED">RESOLVED</option>
               <option value="CLOSED">CLOSED</option>
+              <option value="REOPENED">REOPENED</option>
+              <option value="CANCELLED">CANCELLED</option>
+              <option value="NEW,OPEN,IN_PROGRESS,WAITING_FOR_REQUESTER,REOPENED">MY OPEN (ACTIVE)</option>
             </select>
           </div>
 

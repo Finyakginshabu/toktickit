@@ -10,6 +10,9 @@ import StaffTicketQueue from "./components/StaffTicketQueue.js";
 import { Login } from "./components/Login.js";
 import { ChangePassword } from "./components/ChangePassword.js";
 import UserManagement from "./components/UserManagement.js";
+import RequesterDashboard from "./components/RequesterDashboard.js";
+import StaffDashboard from "./components/StaffDashboard.js";
+import AdminDashboard from "./components/AdminDashboard.js";
 import { checkSystem, Category } from "./api.js";
 
 type SystemStatusState = "idle" | "loading" | "success" | "error";
@@ -87,6 +90,19 @@ function MainContent() {
 
   return (
     <div className="container py-4">
+      {activeTab === "dashboard" && (
+        (() => {
+          const path = typeof window !== "undefined" ? window.location.pathname : "";
+          if (path === "/admin/dashboard" || (!path.includes("/staff/dashboard") && user?.role === "ADMINISTRATOR")) {
+            return <AdminDashboard />;
+          }
+          if (path === "/staff/dashboard" || user?.role === "IT_STAFF") {
+            return <StaffDashboard />;
+          }
+          return <RequesterDashboard />;
+        })()
+      )}
+
       {activeTab === "my-tickets" && <MyTicketsList />}
 
       {activeTab === "ticket-queue" && <StaffTicketQueue />}

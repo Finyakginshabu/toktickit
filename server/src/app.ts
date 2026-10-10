@@ -10,13 +10,20 @@ import { Priority, TicketStatus } from "@prisma/client";
 import { authRouter } from "./routes/auth.js";
 import { staffRouter } from "./routes/staff.js";
 import { adminRouter } from "./routes/admin.js";
+import { actionsRouter } from "./routes/actions.js";
+import { dashboardRouter } from "./routes/dashboard.js";
 import {
   authenticateToken,
   optionalAuthenticateToken,
   requirePasswordChangeResolved,
   requireRole,
 } from "./middleware/auth.js";
-import { isValidStatusTransition } from "./utils/statusTransitions.js";
+import {
+  isValidStatusTransition,
+  isRoleAuthorizedForTransition,
+  isResolutionGateRequired,
+} from "./utils/statusTransitions.js";
+import { evaluateResolutionGate } from "./utils/resolutionGate.js";
 
 export const app = express();
 
@@ -27,6 +34,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/dashboard", dashboardRouter);
+app.use("/api/tickets", actionsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1 — API health check
@@ -423,11 +432,14 @@ const handleMyTickets = async (req: Request, res: Response) => {
       }
     }
 
-    // Status filter
-    if (status && typeof status === "string") {
-      const upperStatus = status.toUpperCase();
-      if (Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
-        where.currentStatus = upperStatus as TicketStatus;
+    // Status filter (Supports comma-separated enum values for multi-status drill-down per BR-15)
+    if (status && typeof status === "string" && status.trim().length > 0) {
+      const statusTokens = status.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+      const validStatuses = statusTokens.filter((s) => Object.values(TicketStatus).includes(s as TicketStatus)) as TicketStatus[];
+      if (validStatuses.length === 1) {
+        where.currentStatus = validStatuses[0];
+      } else if (validStatuses.length > 1) {
+        where.currentStatus = { in: validStatuses };
       }
     }
 
@@ -747,9 +759,10 @@ app.patch(
 );
 
 // ---------------------------------------------------------------------------
-// Lab 3 — Transition Ticket Status Workflow
-// PATCH /api/tickets/:id/status (enforces 8-status transition matrix per BR-14)
-// Restricted strictly to IT_STAFF and ADMINISTRATOR (FR-12, BR-14, AC-14, AC-15)
+// ---------------------------------------------------------------------------
+// Lab 3 & 4 — Transition Ticket Status Workflow
+// PATCH /api/tickets/:id/status (enforces BR-08, BR-09, BR-11 in atomic transaction)
+// Restricted strictly to IT_STAFF and ADMINISTRATOR
 // ---------------------------------------------------------------------------
 app.patch(
   "/api/tickets/:id/status",
@@ -759,7 +772,7 @@ app.patch(
   async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id, 10);
-      const { status, resolutionSummary } = req.body;
+      const { status, resolutionSummary, expectedVersion } = req.body;
 
       if (isNaN(id)) {
         return res.status(400).json({
@@ -774,56 +787,376 @@ app.patch(
       if (!Object.values(TicketStatus).includes(upperStatus as TicketStatus)) {
         return res.status(400).json({
           error: {
-            code: "BAD_REQUEST",
+            code: "INVALID_TRANSITION",
             message: "Invalid ticket status.",
           },
         });
       }
 
       const prisma = getPrisma();
-      const ticket = await prisma.ticket.findUnique({ where: { id } });
-      if (!ticket) {
-        return res.status(404).json({
-          error: {
-            code: "NOT_FOUND",
-            message: "Ticket not found.",
+      const result = await prisma.$transaction(async (tx) => {
+        const ticket = await tx.ticket.findUnique({ where: { id } });
+        if (!ticket) {
+          return {
+            errorStatus: 404,
+            errorBody: {
+              error: {
+                code: "NOT_FOUND",
+                message: "Ticket not found.",
+              },
+            },
+          };
+        }
+
+        // Optimistic Concurrency Check (BR-11)
+        if (expectedVersion !== undefined) {
+          const parsedExpected = parseInt(expectedVersion, 10);
+          if (isNaN(parsedExpected) || ticket.version !== parsedExpected) {
+            return {
+              errorStatus: 409,
+              errorBody: {
+                error: {
+                  code: "CONFLICT",
+                  message:
+                    "The ticket was modified by another user. Please reload the ticket to view the latest changes.",
+                  currentTicket: {
+                    version: ticket.version,
+                    currentStatus: ticket.currentStatus,
+                    updatedAt: ticket.updatedAt,
+                  },
+                },
+              },
+            };
+          }
+        }
+
+        // Enforce status transition matrix (BR-08)
+        if (!isValidStatusTransition(ticket.currentStatus, upperStatus as TicketStatus)) {
+          return {
+            errorStatus: 400,
+            errorBody: {
+              error: {
+                code: "BAD_REQUEST",
+                message: `Invalid status transition from ${ticket.currentStatus} to ${upperStatus}.`,
+              },
+            },
+          };
+        }
+
+        // Resolution Gate check (BR-09) when expectedVersion is present or gate required
+        if (isResolutionGateRequired(ticket.currentStatus, upperStatus as TicketStatus)) {
+          const actionsCount = await tx.actionTaken.count({
+            where: { ticketId: id },
+          });
+
+          const gateEvaluation = evaluateResolutionGate({
+            actionsCount,
+            resolutionSummary,
+            currentStatus: ticket.currentStatus,
+          });
+
+          if (!gateEvaluation.passed) {
+            return {
+              errorStatus: 400,
+              errorBody: {
+                error: {
+                  code: "RESOLUTION_GATE_BLOCKED",
+                  message: "Ticket does not satisfy resolution gate requirements.",
+                  details: gateEvaluation.details,
+                },
+              },
+            };
+          }
+        }
+
+        const updateData: any = {
+          currentStatus: upperStatus as TicketStatus,
+          version: { increment: 1 },
+        };
+
+        if (upperStatus === TicketStatus.RESOLVED) {
+          updateData.resolvedAt = new Date();
+          if (resolutionSummary !== undefined) {
+            updateData.resolutionSummary =
+              typeof resolutionSummary === "string" ? resolutionSummary.trim() : null;
+          }
+        }
+
+        const updated = await tx.ticket.update({
+          where: { id },
+          data: updateData,
+          select: {
+            id: true,
+            ticketNumber: true,
+            currentStatus: true,
+            resolutionSummary: true,
+            resolvedAt: true,
+            version: true,
+            updatedAt: true,
           },
         });
-      }
 
-      // Enforce status transition matrix (BR-14, AC-14, AC-15)
-      if (!isValidStatusTransition(ticket.currentStatus, upperStatus as TicketStatus)) {
-        return res.status(400).json({
-          error: {
-            code: "BAD_REQUEST",
-            message: `Invalid status transition from ${ticket.currentStatus} to ${upperStatus}.`,
-          },
-        });
-      }
-
-      const updateData: any = {
-        currentStatus: upperStatus as TicketStatus,
-      };
-
-      if (upperStatus === TicketStatus.RESOLVED && resolutionSummary !== undefined) {
-        updateData.resolutionSummary = typeof resolutionSummary === "string" ? resolutionSummary.trim() : null;
-      }
-
-      const updated = await prisma.ticket.update({
-        where: { id },
-        data: updateData,
+        return { data: updated };
       });
 
-      return res.status(200).json({
-        id: updated.id,
-        currentStatus: updated.currentStatus,
-        resolutionSummary: updated.resolutionSummary,
-      });
+      if (result.errorStatus && result.errorBody) {
+        return res.status(result.errorStatus).json(result.errorBody);
+      }
+
+      return res.status(200).json(result.data);
     } catch (_err) {
       return res.status(500).json({
         error: {
           code: "INTERNAL_ERROR",
           message: "Failed to update ticket status.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Ticket Cancellation (BR-08, API-22)
+// PATCH /api/tickets/:id/cancel
+// Requesters can only cancel their own NEW tickets.
+// IT Staff/Admin can cancel active tickets (NEW, OPEN, IN_PROGRESS, WAITING_FOR_REQUESTER, REOPENED).
+// ---------------------------------------------------------------------------
+app.patch(
+  "/api/tickets/:id/cancel",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const { expectedVersion } = req.body;
+      const user = req.user!;
+      const prisma = getPrisma();
+
+      const result = await prisma.$transaction(async (tx) => {
+        const ticket = await tx.ticket.findUnique({ where: { id } });
+        if (!ticket) {
+          return {
+            errorStatus: 404,
+            errorBody: {
+              error: {
+                code: "NOT_FOUND",
+                message: "Ticket not found.",
+              },
+            },
+          };
+        }
+
+        const isOwner = ticket.requesterId === user.id;
+
+        // Requester trying to cancel an unowned ticket
+        if (user.role === "REQUESTER" && !isOwner) {
+          return {
+            errorStatus: 403,
+            errorBody: {
+              error: {
+                code: "FORBIDDEN",
+                message: "Access denied. You do not own this ticket.",
+              },
+            },
+          };
+        }
+
+        // Optimistic concurrency check (BR-11)
+        if (expectedVersion !== undefined) {
+          const parsedExpected = parseInt(expectedVersion, 10);
+          if (isNaN(parsedExpected) || ticket.version !== parsedExpected) {
+            return {
+              errorStatus: 409,
+              errorBody: {
+                error: {
+                  code: "CONFLICT",
+                  message:
+                    "The ticket was modified by another user. Please reload the ticket to view the latest changes.",
+                  currentTicket: {
+                    version: ticket.version,
+                    currentStatus: ticket.currentStatus,
+                    updatedAt: ticket.updatedAt,
+                  },
+                },
+              },
+            };
+          }
+        }
+
+        // Validate transition per BR-08 role matrix
+        if (!isRoleAuthorizedForTransition(ticket.currentStatus, TicketStatus.CANCELLED, user.role, isOwner)) {
+          return {
+            errorStatus: 400,
+            errorBody: {
+              error: {
+                code: "INVALID_TRANSITION",
+                message: `Cannot cancel ticket from status ${ticket.currentStatus}.`,
+              },
+            },
+          };
+        }
+
+        const updated = await tx.ticket.update({
+          where: { id },
+          data: {
+            currentStatus: TicketStatus.CANCELLED,
+            version: { increment: 1 },
+          },
+          select: {
+            id: true,
+            ticketNumber: true,
+            currentStatus: true,
+            version: true,
+            updatedAt: true,
+          },
+        });
+
+        return { data: updated };
+      });
+
+      if (result.errorStatus && result.errorBody) {
+        return res.status(result.errorStatus).json(result.errorBody);
+      }
+
+      return res.status(200).json(result.data);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to cancel ticket.",
+        },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Ticket Reopen (BR-08, API-23)
+// PATCH /api/tickets/:id/reopen
+// Requesters can reopen only their own RESOLVED tickets.
+// IT Staff/Admin can reopen RESOLVED or CLOSED tickets.
+// ---------------------------------------------------------------------------
+app.patch(
+  "/api/tickets/:id/reopen",
+  authenticateToken,
+  requirePasswordChangeResolved,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: {
+            code: "BAD_REQUEST",
+            message: "Valid ticket id is required.",
+          },
+        });
+      }
+
+      const { expectedVersion } = req.body;
+      const user = req.user!;
+      const prisma = getPrisma();
+
+      const result = await prisma.$transaction(async (tx) => {
+        const ticket = await tx.ticket.findUnique({ where: { id } });
+        if (!ticket) {
+          return {
+            errorStatus: 404,
+            errorBody: {
+              error: {
+                code: "NOT_FOUND",
+                message: "Ticket not found.",
+              },
+            },
+          };
+        }
+
+        const isOwner = ticket.requesterId === user.id;
+
+        // Requester trying to reopen an unowned ticket
+        if (user.role === "REQUESTER" && !isOwner) {
+          return {
+            errorStatus: 403,
+            errorBody: {
+              error: {
+                code: "FORBIDDEN",
+                message: "Access denied. You do not own this ticket.",
+              },
+            },
+          };
+        }
+
+        // Optimistic concurrency check (BR-11)
+        if (expectedVersion !== undefined) {
+          const parsedExpected = parseInt(expectedVersion, 10);
+          if (isNaN(parsedExpected) || ticket.version !== parsedExpected) {
+            return {
+              errorStatus: 409,
+              errorBody: {
+                error: {
+                  code: "CONFLICT",
+                  message:
+                    "The ticket was modified by another user. Please reload the ticket to view the latest changes.",
+                  currentTicket: {
+                    version: ticket.version,
+                    currentStatus: ticket.currentStatus,
+                    updatedAt: ticket.updatedAt,
+                  },
+                },
+              },
+            };
+          }
+        }
+
+        // Validate transition per BR-08 role matrix
+        if (!isRoleAuthorizedForTransition(ticket.currentStatus, TicketStatus.REOPENED, user.role, isOwner)) {
+          return {
+            errorStatus: 400,
+            errorBody: {
+              error: {
+                code: "INVALID_TRANSITION",
+                message: `Cannot reopen ticket from status ${ticket.currentStatus}.`,
+              },
+            },
+          };
+        }
+
+        const updated = await tx.ticket.update({
+          where: { id },
+          data: {
+            currentStatus: TicketStatus.REOPENED,
+            version: { increment: 1 },
+          },
+          select: {
+            id: true,
+            ticketNumber: true,
+            currentStatus: true,
+            version: true,
+            updatedAt: true,
+          },
+        });
+
+        return { data: updated };
+      });
+
+      if (result.errorStatus && result.errorBody) {
+        return res.status(result.errorStatus).json(result.errorBody);
+      }
+
+      return res.status(200).json(result.data);
+    } catch (_err) {
+      return res.status(500).json({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to reopen ticket.",
         },
       });
     }

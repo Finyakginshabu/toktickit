@@ -7,12 +7,19 @@
     "test:e2e": "playwright test e2e/lab-03",
     "test:e2e:lab2": "playwright test e2e/lab-02",
     "test:e2e:lab3": "playwright test e2e/lab-03",
+    "test:e2e:lab4": "playwright test e2e/lab-04",
     "test:screenshots:lab2": "playwright test e2e/lab-02/capture-screenshots.spec.ts",
     "test:screenshots:lab3": "playwright test e2e/lab-03/capture-screenshots.spec.ts",
+    "test:screenshots:lab4": "playwright test e2e/lab-04/capture-screenshots.spec.ts",
     "test": "npm run test:server",
+    "prisma:seed": "npm run prisma:seed --prefix server",
     "test:server": "npm run test --prefix server",
     "test:client": "npm run test --prefix client",
-    "test:all": "npm run test:server && npm run test:client && npm run test:e2e"
+    "test:lab1": "npm test --prefix server -- tests/lab-01 && npm test --prefix client -- tests/lab-01",
+    "test:lab2": "npm test --prefix server -- tests/lab-02 && npm test --prefix client -- tests/lab-02",
+    "test:lab3": "npm test --prefix server -- tests/lab-03 && npm test --prefix client -- tests/lab-03 && npx playwright test e2e/lab-03",
+    "test:lab4": "npm test --prefix server -- tests/lab-04 && npm test --prefix client -- tests/lab-04 && npx playwright test e2e/lab-04",
+    "test:all": "npm run test:server && npm run test:client && npm run test:e2e && npm run test:e2e:lab4"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.1",
