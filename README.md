@@ -49,10 +49,6 @@ TokTickIT is an internal IT service desk application developed for the CPE334 So
 - **IT Staff Dashboard**: Operational metric cards (New, Open, In Progress, Waiting for Requester, My Assigned) with daily velocity deltas, unassigned and high-priority secondary indicators, and a recent-activity feed.
 - **Administrator Dashboard**: Organisation-wide ticket metrics (all statuses), top-assignee workload ranking, and a user-administration quick-access panel.
 
-### UI and responsive design
-
-The application uses the Zen Green design system across desktop, tablet, and mobile layouts. Internal notes use a distinct restricted visual treatment, and status, priority, and role badges include explicit text labels. All dashboard metric cards link directly to the filtered ticket queue for drill-down navigation.
-
 ## Tech Stack
 
 | Area | Technologies |
